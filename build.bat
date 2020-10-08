@@ -1,0 +1,1 @@
+﻿@vmake clang++ -o spooky2asm.exe NAMN -O2 -std=c++20
