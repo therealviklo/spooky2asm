@@ -1,16 +1,4 @@
-﻿
-
-  func test()
+﻿func main()
 {
-
-}
-
-func test2(a: Int, b: Int)
-{
-
-}
-
-func main()
-{
-
+	(2 + 2) * 4;
 }

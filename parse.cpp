@@ -11,8 +11,20 @@ std::string getFuncLabel(const std::string& func)
 	return "_" + func;
 }
 
+bool peekcmp(const char* str, const char* cmp) noexcept
+{
+	while (*cmp != '\0')
+	{
+		if (*str != *cmp) return false;
+		str++;
+		cmp++;
+	}
+	return true;
+}
+
 ParseCursor::ParseCursor(const char* str)
 	: cur(str),
+	  end((const char *)~0ull),
 	  x(1),
 	  y(1)
 {
@@ -36,6 +48,7 @@ void ParseCursor::move()
 		x++;
 	}
 	cur++;
+	if (cur > end) error("unexpected end of sequence");
 }
 
 void ParseCursor::move(size_t num)
@@ -54,12 +67,14 @@ void ParseCursor::move(size_t num)
 		}
 		cur++;
 	}
+	if (cur > end) error("unexpected end of sequence");
 }
 
-void ParseCursor::skipWhitespace() noexcept
+void ParseCursor::skipWhitespace()
 {
 	while (isspace(*cur))
 	{
+		if (cur >= end) break;
 		if (*cur == '\n')
 		{
 			x = 1;
@@ -73,7 +88,7 @@ void ParseCursor::skipWhitespace() noexcept
 	}
 }
 
-bool ParseCursor::tryParse(const char* cmpStr) noexcept
+bool ParseCursor::tryParse(const char* cmpStr)
 {
 	const char* peekStr = cur;
 	size_t lx = x;
@@ -96,10 +111,11 @@ bool ParseCursor::tryParse(const char* cmpStr) noexcept
 	cur = peekStr;
 	x = lx;
 	y = ly;
+	if (cur > end) error("unexpected end of sequence");
 	return true;
 }
 
-bool ParseCursor::tryParseWord(const char* cmpStr) noexcept
+bool ParseCursor::tryParseWord(const char* cmpStr)
 {
 	const char* peekStr = cur;
 	size_t lx = x;
@@ -123,6 +139,7 @@ bool ParseCursor::tryParseWord(const char* cmpStr) noexcept
 	cur = peekStr;
 	x = lx;
 	y = ly;
+	if (cur > end) error("unexpected end of sequence");
 	return true;
 }
 
@@ -145,6 +162,7 @@ std::string ParseCursor::readIdentifier()
 		}
 		cur++;
 	} while (validNameChar(*cur));
+	if (cur > end) error("unexpected end of sequence");
 	return ss.str();
 }
 
@@ -218,9 +236,169 @@ LocalScope::~LocalScope()
 	scope.removeScope();
 }
 
-void evaluateExpression(ParseCursor& pc, std::stringstream& op, LocalStack& localStack, Scope& scope)
+void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack, Scope& scope)
 {
+	auto precedence = [](ParseCursor& c) -> int {
+		if (c.tryParse("=")) return 3;
+		if (c.tryParse("+")) return 2;
+		if (c.tryParse("-")) return 2;
+		if (c.tryParse("%")) return 1;
+		if (c.tryParse("*")) return 1;
+		if (c.tryParse("/")) return 1;
+		return 0;
+	};
 
+	ParseCursor splitter = pc;
+	int paramLevel = 0;
+	const char* currOp = nullptr;
+	const char* currOpEnd = nullptr;
+	int currPrecedence = 0;
+	while (!splitter.atEnd())
+	{
+		if (*splitter == '(') paramLevel++;
+		else if (*splitter == ')') paramLevel--;
+		if (!paramLevel)
+		{
+			const char* const opBegin = splitter;
+			const int prec = precedence(splitter);
+			if (prec > currPrecedence)
+			{
+				currPrecedence = prec;
+				currOp = opBegin;
+				currOpEnd = splitter;
+			}
+			if (prec == 0) splitter.move();
+		}
+		else
+		{
+			splitter.move();
+		}
+	}
+
+	if (currOp)
+	{
+		switch (*currOp)
+		{
+			case '+':
+			{
+				ParseCursor firstPc = pc;
+				firstPc.setEnd(currOp);
+				evaluateExpression(firstPc, op, localStack, scope);
+
+				std::string tmp = localStack.getQword();
+				op << "\tmov " << tmp << ", rax\n";
+
+				ParseCursor secondPc(currOpEnd);
+				secondPc.setEnd(pc.getEnd());
+				evaluateExpression(secondPc, op, localStack, scope);
+
+				op <<	"\tmov rcx, rax\n"
+						"\tmov rax, " << tmp << "\n"
+						"\tadd rax, rcx\n";
+			}
+			return;
+			case '-':
+			{
+				ParseCursor firstPc = pc;
+				firstPc.setEnd(currOp);
+				evaluateExpression(firstPc, op, localStack, scope);
+
+				std::string tmp = localStack.getQword();
+				op << "\tmov " << tmp << ", rax\n";
+
+				ParseCursor secondPc(currOpEnd);
+				secondPc.setEnd(pc.getEnd());
+				evaluateExpression(secondPc, op, localStack, scope);
+
+				op <<	"\tmov rcx, rax\n"
+						"\tmov rax, " << tmp << "\n"
+						"\tsub rax, rcx\n";
+			}
+			return;
+			case '%':
+			{
+				ParseCursor firstPc = pc;
+				firstPc.setEnd(currOp);
+				evaluateExpression(firstPc, op, localStack, scope);
+
+				std::string tmp = localStack.getQword();
+				op << "\tmov " << tmp << ", rax\n";
+
+				ParseCursor secondPc(currOpEnd);
+				secondPc.setEnd(pc.getEnd());
+				evaluateExpression(secondPc, op, localStack, scope);
+
+				op <<	"\tmov rcx, rax\n"
+						"\tmov rax, " << tmp << "\n"
+						"\txor rdx, rdx\n"
+						"\tidiv rcx\n"
+						"\tmov rax, rdx\n";
+			}
+			return;
+			case '*':
+			{
+				ParseCursor firstPc = pc;
+				firstPc.setEnd(currOp);
+				evaluateExpression(firstPc, op, localStack, scope);
+
+				std::string tmp = localStack.getQword();
+				op << "\tmov " << tmp << ", rax\n";
+
+				ParseCursor secondPc(currOpEnd);
+				secondPc.setEnd(pc.getEnd());
+				evaluateExpression(secondPc, op, localStack, scope);
+
+				op <<	"\tmov rcx, rax\n"
+						"\tmov rax, " << tmp << "\n"
+						"\timul rax, rcx\n";
+			}
+			return;
+			case '/':
+			{
+				ParseCursor firstPc = pc;
+				firstPc.setEnd(currOp);
+				evaluateExpression(firstPc, op, localStack, scope);
+
+				std::string tmp = localStack.getQword();
+				op << "\tmov " << tmp << ", rax\n";
+
+				ParseCursor secondPc(currOpEnd);
+				secondPc.setEnd(pc.getEnd());
+				evaluateExpression(secondPc, op, localStack, scope);
+
+				op <<	"\tmov rcx, rax\n"
+						"\tmov rax, " << tmp << "\n"
+						"\txor rdx, rdx\n"
+						"\tidiv rcx\n";
+			}
+			return;
+		}
+	}
+	else
+	{
+		pc.skipWhitespace();
+		if (isdigit(*pc))
+		{
+			op <<	"\tmov rax, " << std::strtoll(pc, nullptr, 0) << "\n";
+		}
+		else if (*pc == '(')
+		{
+			puts("AA");
+			ParseCursor paramPc = pc;
+			paramPc.move();
+			int closeParamLevel = 0;
+			ParseCursor closeParamPc = paramPc;
+			while (!closeParamLevel && *closeParamPc != ')')
+			{
+				puts("BB");
+				if (*closeParamPc == '(') closeParamLevel++;
+				else if (*closeParamPc == ')') closeParamLevel--;
+				closeParamPc.move();
+			}
+			paramPc.setEnd(closeParamPc);
+			evaluateExpression(paramPc, op, localStack, scope);
+		}
+	}
 }
 
 void generateFunction(ParseCursor& pc, std::stringstream& op)
@@ -280,7 +458,11 @@ void generateFunction(ParseCursor& pc, std::stringstream& op)
 	pc.skipWhitespace();
 	while (!pc.tryParse("}"))
 	{
-		evaluateExpression(pc, body, localStack, scope);
+		ParseCursor exprCur = pc;
+		while (*pc != ';') pc.move();
+		pc.move();
+		exprCur.setEnd(pc);
+		evaluateExpression(exprCur, body, localStack, scope);
 		pc.skipWhitespace();
 	}
 

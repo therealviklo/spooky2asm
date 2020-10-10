@@ -2,31 +2,25 @@
 	extern ExitProcess
 
 section .text
-_test:
-	push rbp
-	mov rbp, rsp
-	sub rsp, 0
-.ret:
-	mov rsp, rbp
-	pop rbp
-	ret
-
-_test2:
-	push rbp
-	mov rbp, rsp
-	sub rsp, 0
-.ret:
-	mov rsp, rbp
-	pop rbp
-	ret
-
 main:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 0
+	sub rsp, 16
+	mov rax, 2
+	mov qword [rbp - 8], rax
+	mov rax, 2
+	mov rcx, rax
+	mov rax, qword [rbp - 8]
+	add rax, rcx
+	mov qword [rbp - 16], rax
+	mov rax, 4
+	mov rcx, rax
+	mov rax, qword [rbp - 16]
+	imul rax, rcx
 .ret:
 	mov rsp, rbp
 	pop rbp
-	xor rcx, rcx
+	;xor rcx, rcx
+	mov rcx, rax
 	call ExitProcess
 

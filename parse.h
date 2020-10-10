@@ -7,6 +7,7 @@
 
 bool validNameChar(char c) noexcept;
 std::string getFuncLabel(const std::string& func);
+bool peekcmp(const char* str, const char* cmp) noexcept;
 
 class EndOfFileException : public std::runtime_error
 {
@@ -27,17 +28,22 @@ class ParseCursor
 {
 private:
 	const char* cur;
+	const char* end;
 	size_t x;
 	size_t y;
 public:
 	ParseCursor(const char* str);
 
+	void setEnd(const char* end) noexcept { this->end = end; }
+	constexpr const char* getEnd() const noexcept { return end; }
+	constexpr bool atEnd() const noexcept { return cur >= end; }
+
 	void move();
 	void move(size_t num);
-	void skipWhitespace() noexcept;
+	void skipWhitespace();
 
-	bool tryParse(const char* cmpStr) noexcept;
-	bool tryParseWord(const char* cmpStr) noexcept;
+	bool tryParse(const char* cmpStr);
+	bool tryParseWord(const char* cmpStr);
 	std::string readIdentifier();
 
 	inline void error(const char* msg);
@@ -89,7 +95,7 @@ public:
 	LocalScope& operator=(const LocalScope&) = delete;
 };
 
-void evaluateExpression(ParseCursor& pc, std::stringstream& op, LocalStack& localStack, Scope& scope);
+void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack, Scope& scope);
 void generateFunction(ParseCursor& pc, std::stringstream& op);
 
 std::stringstream compile(const std::string& prog);
