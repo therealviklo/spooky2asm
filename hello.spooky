@@ -1,1 +1,16 @@
 ﻿
+
+  func test()
+{
+
+}
+
+func test2(a: Int, b: Int)
+{
+
+}
+
+func main()
+{
+
+}

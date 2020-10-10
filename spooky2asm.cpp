@@ -42,10 +42,10 @@ int main(int argc, char* argv[])
 
 		std::string spookyFileContents;
 		std::fstream spookyFile(input, std::ios_base::in);
-		spookyFile.seekg(std::ios_base::end);
+		spookyFile.seekg(0, std::ios_base::end);
 		const size_t spookyFileSize = spookyFile.tellg();
 		spookyFileContents.resize(spookyFileSize);
-		spookyFile.seekg(std::ios_base::beg);
+		spookyFile.seekg(0, std::ios_base::beg);
 		spookyFile.read(&spookyFileContents[0], spookyFileSize);
 
 		spookyFile.close();
@@ -54,6 +54,11 @@ int main(int argc, char* argv[])
 		
 		std::fstream asmFile(output, std::ios_base::out);
 		asmFile << opAsm.str();
+	}
+	catch (const InvalidSyntaxException& e)
+	{
+		printf("Error: %s (line: %zu, col: %zu)\n", e.what(), e.y, e.x);
+		return EXIT_FAILURE;
 	}
 	catch (const std::exception& e)
 	{
