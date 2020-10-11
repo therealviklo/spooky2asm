@@ -279,11 +279,51 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 	{
 		switch (*currOp)
 		{
+			case '=':
+			{
+				std::stringstream nameSS;
+				pc.skipWhitespace();
+				while (validNameChar(*pc))
+				{
+					nameSS << *pc;
+					pc.move();
+				}
+				const std::string name = nameSS.str();
+				if (scope.has(name))
+				{
+					pc.skipWhitespace();
+					if (!pc.tryParse("=")) pc.error("invalid syntax");
+				}
+				else
+				{
+					pc.skipWhitespace();
+					if (!pc.tryParse(":")) pc.error("invalid syntax");
+					pc.skipWhitespace();
+					const std::string typeName = pc.readIdentifier();
+					scope.add(name, {typeName, localStack.getQword()});
+					pc.skipWhitespace();
+					if (!pc.tryParse("=")) pc.error("invalid syntax");
+				}
+
+				evaluateExpression(pc, op, localStack, scope);
+
+				const std::string loc = scope.get(name).location;
+				op << "\tmov " << loc << ", rax\n";
+			}
+			return;
 			case '+':
 			{
 				ParseCursor firstPc = pc;
-				firstPc.setEnd(currOp);
-				evaluateExpression(firstPc, op, localStack, scope);
+				firstPc.skipWhitespace();
+				if (pc.tryParse("+"))
+				{
+					op << "\txor rax, rax\n";
+				}
+				else
+				{
+					firstPc.setEnd(currOp);
+					evaluateExpression(firstPc, op, localStack, scope);
+				}
 
 				std::string tmp = localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
@@ -300,8 +340,16 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 			case '-':
 			{
 				ParseCursor firstPc = pc;
-				firstPc.setEnd(currOp);
-				evaluateExpression(firstPc, op, localStack, scope);
+				firstPc.skipWhitespace();
+				if (pc.tryParse("-"))
+				{
+					op << "\txor rax, rax\n";
+				}
+				else
+				{
+					firstPc.setEnd(currOp);
+					evaluateExpression(firstPc, op, localStack, scope);
+				}
 
 				std::string tmp = localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
@@ -383,14 +431,12 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 		}
 		else if (*pc == '(')
 		{
-			puts("AA");
 			ParseCursor paramPc = pc;
 			paramPc.move();
 			int closeParamLevel = 0;
 			ParseCursor closeParamPc = paramPc;
 			while (!closeParamLevel && *closeParamPc != ')')
 			{
-				puts("BB");
 				if (*closeParamPc == '(') closeParamLevel++;
 				else if (*closeParamPc == ')') closeParamLevel--;
 				closeParamPc.move();
