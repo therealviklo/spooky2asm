@@ -35,6 +35,11 @@ ParseCursor::ParseCursor(const char* str)
 	}
 }
 
+void ParseCursor::skipTo(const char* pos)
+{
+	while (cur < pos) move();
+}
+
 void ParseCursor::move()
 {
 	if (*cur == '\0') throw EndOfFileException("unexpected end of file");
@@ -292,17 +297,17 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				if (scope.has(name))
 				{
 					pc.skipWhitespace();
-					if (!pc.tryParse("=")) pc.error("invalid syntax");
+					if (!pc.tryParse("=")) pc.error("invalid syntax, expected '='");
 				}
 				else
 				{
 					pc.skipWhitespace();
-					if (!pc.tryParse(":")) pc.error("invalid syntax");
+					if (!pc.tryParse(":")) pc.error("invalid syntax, expected ':'");
 					pc.skipWhitespace();
 					const std::string typeName = pc.readIdentifier();
 					scope.add(name, {typeName, localStack.getQword()});
 					pc.skipWhitespace();
-					if (!pc.tryParse("=")) pc.error("invalid syntax");
+					if (!pc.tryParse("=")) pc.error("invalid syntax, expected '=' (2)");
 				}
 
 				evaluateExpression(pc, op, localStack, scope);
@@ -315,7 +320,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 			{
 				ParseCursor firstPc = pc;
 				firstPc.skipWhitespace();
-				if (pc.tryParse("+"))
+				if (firstPc.tryParse("+"))
 				{
 					op << "\txor rax, rax\n";
 				}
@@ -328,7 +333,8 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				std::string tmp = localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc(currOpEnd);
+				ParseCursor secondPc = pc;
+				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
 				evaluateExpression(secondPc, op, localStack, scope);
 
@@ -341,7 +347,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 			{
 				ParseCursor firstPc = pc;
 				firstPc.skipWhitespace();
-				if (pc.tryParse("-"))
+				if (firstPc.tryParse("-"))
 				{
 					op << "\txor rax, rax\n";
 				}
@@ -354,7 +360,8 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				std::string tmp = localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc(currOpEnd);
+				ParseCursor secondPc = pc;
+				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
 				evaluateExpression(secondPc, op, localStack, scope);
 
@@ -372,7 +379,8 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				std::string tmp = localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc(currOpEnd);
+				ParseCursor secondPc = pc;
+				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
 				evaluateExpression(secondPc, op, localStack, scope);
 
@@ -392,7 +400,8 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				std::string tmp = localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc(currOpEnd);
+				ParseCursor secondPc = pc;
+				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
 				evaluateExpression(secondPc, op, localStack, scope);
 
@@ -410,7 +419,8 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				std::string tmp = localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc(currOpEnd);
+				ParseCursor secondPc = pc;
+				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
 				evaluateExpression(secondPc, op, localStack, scope);
 
@@ -443,6 +453,19 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 			}
 			paramPc.setEnd(closeParamPc);
 			evaluateExpression(paramPc, op, localStack, scope);
+		}
+		else
+		{
+			std::stringstream ss;
+			while (validNameChar(*pc))
+			{
+				ss << *pc;
+				pc.move();
+			}
+			const std::string loc = scope.get(ss.str()).location;
+			pc.skipWhitespace();
+			if (!pc.atEnd()) pc.error("invalid syntax");
+			op << "\tmov rax, " << loc << "\n";
 		}
 	}
 }
@@ -506,8 +529,8 @@ void generateFunction(ParseCursor& pc, std::stringstream& op)
 	{
 		ParseCursor exprCur = pc;
 		while (*pc != ';') pc.move();
-		pc.move();
 		exprCur.setEnd(pc);
+		pc.move();
 		evaluateExpression(exprCur, body, localStack, scope);
 		pc.skipWhitespace();
 	}

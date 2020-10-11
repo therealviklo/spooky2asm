@@ -1,4 +1,5 @@
 ﻿func main()
 {
-	x: Int = (2 + 2) * (-4);
+	a: Int = b: Int = 2;
+	a + b;
 }

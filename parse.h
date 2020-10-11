@@ -38,6 +38,8 @@ public:
 	constexpr const char* getEnd() const noexcept { return end; }
 	constexpr bool atEnd() const noexcept { return cur >= end; }
 
+	void skipTo(const char* pos);
+
 	void move();
 	void move(size_t num);
 	void skipWhitespace();
