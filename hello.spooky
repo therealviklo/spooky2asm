@@ -1,5 +1,11 @@
-﻿func main()
+﻿extern print(ch: Int)
+
+func printDigit(d: Int)
 {
-	a: Int = b: Int = 2;
-	a + b;
+	print(48 + d);
+}
+
+func main()
+{
+	printDigit(8);
 }

@@ -97,7 +97,15 @@ public:
 	LocalScope& operator=(const LocalScope&) = delete;
 };
 
-void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack, Scope& scope);
-void generateFunction(ParseCursor& pc, std::stringstream& op);
+struct Function
+{
+	std::vector<std::string> argTypes;
+	std::string retType;
+};
+typedef std::unordered_map<std::string, Function> Functions;
+
+void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack, Scope& scope, Functions& functions);
+void generateFunction(ParseCursor& pc, std::stringstream& op, Functions& functions);
+void generateExtern(ParseCursor& pc, std::stringstream& op, Functions& functions);
 
 std::stringstream compile(const std::string& prog);
