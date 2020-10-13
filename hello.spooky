@@ -1,11 +1,11 @@
 ﻿extern print(ch: Int)
 
-func printDigit(d: Int)
+func digitToChar(d: Int, d2: Int)
 {
-	print(48 + d);
+	48 + d + d2;
 }
 
 func main()
 {
-	printDigit(8);
+	print(digitToChar(3, 1));
 }
