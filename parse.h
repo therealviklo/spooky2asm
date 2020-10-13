@@ -104,8 +104,25 @@ struct Function
 };
 typedef std::unordered_map<std::string, Function> Functions;
 
-void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack, Scope& scope, Functions& functions);
-void generateFunction(ParseCursor& pc, std::stringstream& op, Functions& functions);
-void generateExtern(ParseCursor& pc, std::stringstream& op, Functions& functions);
+class Parser
+{
+private:
+	ParseCursor pc;
+	Functions functions;
+	Scope scope;
 
-std::stringstream compile(const std::string& prog);
+	void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack);
+	void generateFunction(std::stringstream& op);
+	void generateExtern(std::stringstream& op);
+public:
+	Parser(const std::string& prog, std::stringstream& op);
+};
+
+inline std::stringstream compile(const std::string& prog)
+{
+	std::stringstream op;
+
+	Parser p(prog, op);
+
+	return op;
+}

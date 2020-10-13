@@ -241,7 +241,7 @@ LocalScope::~LocalScope()
 	scope.removeScope();
 }
 
-void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack, Scope& scope, Functions& functions)
+void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack)
 {
 	auto precedence = [](ParseCursor& c) -> int {
 		if (c.tryParse("=")) return 3;
@@ -311,7 +311,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 					if (!pc.tryParse("=")) pc.error("invalid syntax, expected '=' (2)");
 				}
 
-				evaluateExpression(pc, op, localStack, scope, functions);
+				evaluateExpression(pc, op, localStack);
 
 				const std::string loc = scope.get(name).location;
 				op << "\tmov " << loc << ", rax\n";
@@ -328,7 +328,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				else
 				{
 					firstPc.setEnd(currOp);
-					evaluateExpression(firstPc, op, localStack, scope, functions);
+					evaluateExpression(firstPc, op, localStack);
 				}
 
 				std::string tmp = localStack.getQword();
@@ -337,7 +337,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				evaluateExpression(secondPc, op, localStack, scope, functions);
+				evaluateExpression(secondPc, op, localStack);
 
 				op <<	"\tmov rcx, rax\n"
 						"\tmov rax, " << tmp << "\n"
@@ -355,7 +355,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				else
 				{
 					firstPc.setEnd(currOp);
-					evaluateExpression(firstPc, op, localStack, scope, functions);
+					evaluateExpression(firstPc, op, localStack);
 				}
 
 				std::string tmp = localStack.getQword();
@@ -364,7 +364,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				evaluateExpression(secondPc, op, localStack, scope, functions);
+				evaluateExpression(secondPc, op, localStack);
 
 				op <<	"\tmov rcx, rax\n"
 						"\tmov rax, " << tmp << "\n"
@@ -375,7 +375,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 			{
 				ParseCursor firstPc = pc;
 				firstPc.setEnd(currOp);
-				evaluateExpression(firstPc, op, localStack, scope, functions);
+				evaluateExpression(firstPc, op, localStack);
 
 				std::string tmp = localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
@@ -383,7 +383,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				evaluateExpression(secondPc, op, localStack, scope, functions);
+				evaluateExpression(secondPc, op, localStack);
 
 				op <<	"\tmov rcx, rax\n"
 						"\tmov rax, " << tmp << "\n"
@@ -396,7 +396,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 			{
 				ParseCursor firstPc = pc;
 				firstPc.setEnd(currOp);
-				evaluateExpression(firstPc, op, localStack, scope, functions);
+				evaluateExpression(firstPc, op, localStack);
 
 				std::string tmp = localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
@@ -404,7 +404,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				evaluateExpression(secondPc, op, localStack, scope, functions);
+				evaluateExpression(secondPc, op, localStack);
 
 				op <<	"\tmov rcx, rax\n"
 						"\tmov rax, " << tmp << "\n"
@@ -415,7 +415,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 			{
 				ParseCursor firstPc = pc;
 				firstPc.setEnd(currOp);
-				evaluateExpression(firstPc, op, localStack, scope, functions);
+				evaluateExpression(firstPc, op, localStack);
 
 				std::string tmp = localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
@@ -423,7 +423,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				evaluateExpression(secondPc, op, localStack, scope, functions);
+				evaluateExpression(secondPc, op, localStack);
 
 				op <<	"\tmov rcx, rax\n"
 						"\tmov rax, " << tmp << "\n"
@@ -453,7 +453,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 				closeParamPc.move();
 			}
 			paramPc.setEnd(closeParamPc);
-			evaluateExpression(paramPc, op, localStack, scope, functions);
+			evaluateExpression(paramPc, op, localStack);
 		}
 		else
 		{
@@ -496,7 +496,7 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 					// Sätt kommatecknet eller parentesen som slutet på argCur.
 					argCur.setEnd(pc);
 					// Evaluera.
-					evaluateExpression(argCur, op, localStack, scope, functions);
+					evaluateExpression(argCur, op, localStack);
 					// Flytta till stacken.
 					op << "\tmov qword [rsp + " << currParamOffset << "], rax\n";
 
@@ -526,14 +526,13 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 	}
 }
 
-void generateFunction(ParseCursor& pc, std::stringstream& op, Functions& functions)
+void Parser::generateFunction(std::stringstream& op)
 {
 	std::string funcName = pc.readIdentifier();
 	if (functions.count(funcName)) pc.error("function redefinition");
 	std::vector<std::string> argTypes;
 
 	LocalStack localStack;
-	Scope scope;
 	LocalScope localScope(scope);
 
 	pc.skipWhitespace();
@@ -593,7 +592,7 @@ void generateFunction(ParseCursor& pc, std::stringstream& op, Functions& functio
 		while (*pc != ';') pc.move();
 		exprCur.setEnd(pc);
 		pc.move();
-		evaluateExpression(exprCur, body, localStack, scope, functions);
+		evaluateExpression(exprCur, body, localStack);
 		pc.skipWhitespace();
 	}
 
@@ -614,7 +613,7 @@ void generateFunction(ParseCursor& pc, std::stringstream& op, Functions& functio
 	}
 }
 
-void generateExtern(ParseCursor& pc, std::stringstream& op, Functions& functions)
+void Parser::generateExtern(std::stringstream& op)
 {
 	std::string funcName = pc.readIdentifier();
 	std::vector<std::string> argTypes;
@@ -749,17 +748,14 @@ void generateExtern(ParseCursor& pc, std::stringstream& op, Functions& functions
 	functions.insert({std::move(funcName), {std::move(argTypes), ""}});
 }
 
-std::stringstream compile(const std::string& prog)
+Parser::Parser(const std::string& prog, std::stringstream& op)
+	: pc(prog.c_str())
 {
-	std::stringstream op;
 	op <<	"\tglobal main\n"
 			"\textern ExitProcess\n"
 			"\textern putchar\n"
 			"\n"
 			"section .text\n";
-
-	ParseCursor pc(prog.c_str());
-	Functions functions;
 
 	while (true)
 	{
@@ -768,18 +764,16 @@ std::stringstream compile(const std::string& prog)
 		if (pc.tryParseWord("func"))
 		{
 			pc.skipWhitespace();
-			generateFunction(pc, op, functions);
+			generateFunction(op);
 		}
 		else if (pc.tryParseWord("extern"))
 		{
 			pc.skipWhitespace();
-			generateExtern(pc, op, functions);
+			generateExtern(op);
 		}
 		else
 		{
 			pc.error("unexpected symbol");
 		}
 	}
-
-	return op;
 }
