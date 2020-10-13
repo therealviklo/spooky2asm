@@ -1,8 +1,16 @@
 ﻿extern print(ch: Int)
 extern printInt(i: Int)
 
+func test()
+{
+	printInt(-420);
+	return;
+	printInt(420);
+}
+
 func main()
 {
+	test();
 	printInt(69);
 	print(10);
 	printInt(1);

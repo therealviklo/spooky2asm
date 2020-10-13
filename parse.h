@@ -112,6 +112,7 @@ private:
 	Scope scope;
 
 	void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack);
+	void generateStatement(std::stringstream& op, LocalStack& localStack);
 	void generateFunction(std::stringstream& op);
 	void generateExtern(std::stringstream& op);
 public:
