@@ -501,12 +501,17 @@ void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& local
 					op << "\tmov qword [rsp + " << currParamOffset << "], rax\n";
 
 					// Nästa
+					currParamOffset += 8;
 					if (pc.tryParse(","))
 					{
-						currParamOffset += 8;
 						pc.skipWhitespace();
 						if (*pc == ')') pc.error("expected expression");
 					}
+				}
+
+				if (currParamOffset != 8 * functions.at(id).argTypes.size())
+				{
+					pc.error("wrong number of arguments");
 				}
 
 				// Kör och rensa upp.
@@ -664,6 +669,11 @@ void generateExtern(ParseCursor& pc, std::stringstream& op, Functions& functions
 		op <<	"_print:\n"
 				"\tpush rbp\n"
 				"\tmov rbp, rsp\n"
+				"\txor rdx, rdx\n"
+				"\tmov rax, rsp\n"
+				"\tmov rcx, 16\n"
+				"\tdiv rcx\n"
+				"\tsub rsp, rdx\n"
 				"\tsub rsp, 32\n"
 				"\tmov rcx, qword [rbp + 16]\n"
 				"\tcall putchar\n"
