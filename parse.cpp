@@ -526,6 +526,31 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 	}
 }
 
+void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
+{
+	if (pc.tryParseWord("return"))
+	{
+		pc.skipWhitespace();
+		if (!pc.tryParse(";"))
+		{
+			ParseCursor exprCur = pc;
+			while (*pc != ';') pc.move();
+			exprCur.setEnd(pc);
+			pc.move();
+			evaluateExpression(exprCur, op, localStack);
+		}
+		op << "\tjmp .ret\n";
+	}
+	else
+	{
+		ParseCursor exprCur = pc;
+		while (*pc != ';') pc.move();
+		exprCur.setEnd(pc);
+		pc.move();
+		evaluateExpression(exprCur, op, localStack);
+	}
+}
+
 void Parser::generateFunction(std::stringstream& op)
 {
 	std::string funcName = pc.readIdentifier();
@@ -588,11 +613,7 @@ void Parser::generateFunction(std::stringstream& op)
 	pc.skipWhitespace();
 	while (!pc.tryParse("}"))
 	{
-		ParseCursor exprCur = pc;
-		while (*pc != ';') pc.move();
-		exprCur.setEnd(pc);
-		pc.move();
-		evaluateExpression(exprCur, body, localStack);
+		generateStatement(body, localStack);
 		pc.skipWhitespace();
 	}
 

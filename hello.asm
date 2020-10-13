@@ -73,10 +73,38 @@ _printInt:
 	pop rbp
 	ret
 
+_test:
+	push rbp
+	mov rbp, rsp
+	sub rsp, 8
+	sub rsp, 8
+	xor rax, rax
+	mov qword [rbp - 8], rax
+	mov rax, 420
+	mov rcx, rax
+	mov rax, qword [rbp - 8]
+	sub rax, rcx
+	mov qword [rsp + 0], rax
+	call _printInt
+	add rsp, 8
+	jmp .ret
+	sub rsp, 8
+	mov rax, 420
+	mov qword [rsp + 0], rax
+	call _printInt
+	add rsp, 8
+.ret:
+	mov rsp, rbp
+	pop rbp
+	ret
+
 main:
 	push rbp
 	mov rbp, rsp
 	sub rsp, 16
+	sub rsp, 0
+	call _test
+	add rsp, 0
 	sub rsp, 8
 	mov rax, 69
 	mov qword [rsp + 0], rax
