@@ -121,7 +121,8 @@ private:
 			size_t getIfNum() noexcept { return ifNum++; }
 	} labelManager;
 
-	void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack);
+	// Return: typen
+	std::string evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack);
 	void generateStatement(std::stringstream& op, LocalStack& localStack);
 	void generateBlock(std::stringstream& op, LocalStack& localStack);
 	void generateFunction(std::stringstream& op);

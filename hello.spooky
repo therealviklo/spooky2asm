@@ -1,5 +1,10 @@
 ﻿extern printInt(i: Int)
 
+func add(x: Int)
+{
+	return x;
+}
+
 func main()
 {
 	if (1)
@@ -12,7 +17,7 @@ func main()
 	}
 	else if (0)
 	{
-		
+
 	}
 	else
 	{

@@ -241,7 +241,7 @@ LocalScope::~LocalScope()
 	scope.removeScope();
 }
 
-void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack)
+std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack)
 {
 	auto precedence = [](ParseCursor& c) -> int {
 		if (c.tryParse("=")) return 3;
@@ -315,8 +315,10 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 
 				const std::string loc = scope.get(name).location;
 				op << "\tmov " << loc << ", rax\n";
+
+				return scope.get(name).type;
 			}
-			return;
+			break; // Borde inte komma hit då det är en return ovan.
 			case '+':
 			{
 				ParseCursor firstPc = pc;
@@ -343,7 +345,7 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 						"\tmov rax, " << tmp << "\n"
 						"\tadd rax, rcx\n";
 			}
-			return;
+			return "Int";
 			case '-':
 			{
 				ParseCursor firstPc = pc;
@@ -370,7 +372,7 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 						"\tmov rax, " << tmp << "\n"
 						"\tsub rax, rcx\n";
 			}
-			return;
+			return "Int";
 			case '%':
 			{
 				ParseCursor firstPc = pc;
@@ -391,7 +393,7 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 						"\tidiv rcx\n"
 						"\tmov rax, rdx\n";
 			}
-			return;
+			return "Int";
 			case '*':
 			{
 				ParseCursor firstPc = pc;
@@ -410,7 +412,7 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 						"\tmov rax, " << tmp << "\n"
 						"\timul rax, rcx\n";
 			}
-			return;
+			return "Int";
 			case '/':
 			{
 				ParseCursor firstPc = pc;
@@ -430,7 +432,7 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 						"\txor rdx, rdx\n"
 						"\tidiv rcx\n";
 			}
-			return;
+			return "Int";
 		}
 	}
 	else
@@ -439,6 +441,8 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 		if (isdigit(*pc))
 		{
 			op <<	"\tmov rax, " << std::strtoll(pc, nullptr, 0) << "\n";
+
+			return "Int";
 		}
 		else if (*pc == '(')
 		{
@@ -453,7 +457,7 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 				closeParamPc.move();
 			}
 			paramPc.setEnd(closeParamPc);
-			evaluateExpression(paramPc, op, localStack);
+			return evaluateExpression(paramPc, op, localStack);
 		}
 		else
 		{
@@ -465,6 +469,8 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 				pc.skipWhitespace();
 				if (!pc.atEnd()) pc.error("invalid syntax");
 				op << "\tmov rax, " << loc << "\n";
+
+				return scope.get(id).type;
 			}
 			else if (functions.count(id)) // Kör en funktion
 			{
@@ -475,8 +481,10 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 				pc.skipWhitespace();
 				if (!pc.tryParse("(")) pc.error("expected '('");
 
+				auto& func = functions.at(id);
+
 				// Gör utrymme för argumenten.
-				op << "\tsub rsp, " << (8 * functions.at(id).argTypes.size()) << "\n";
+				op << "\tsub rsp, " << (8 * func.argTypes.size()) << "\n";
 
 				// Läs in och evaluera uttrycken och flytta dem till dit de ska.
 				size_t currParamOffset = 0;
@@ -509,14 +517,16 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 					}
 				}
 
-				if (currParamOffset != 8 * functions.at(id).argTypes.size())
+				if (currParamOffset != 8 * func.argTypes.size())
 				{
 					pc.error("wrong number of arguments");
 				}
 
 				// Kör och rensa upp.
 				op <<	"\tcall " << funcLabel << "\n"
-						"\tadd rsp, " << (8 * functions.at(id).argTypes.size()) << "\n";
+						"\tadd rsp, " << (8 * func.argTypes.size()) << "\n";
+
+				return func.retType;
 			}
 			else
 			{
@@ -524,6 +534,7 @@ void Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStac
 			}
 		}
 	}
+	return "";
 }
 
 void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
