@@ -61,9 +61,28 @@ _printInt:
 _add:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 0
+	sub rsp, 8
 	mov rax, qword [rbp + 16]
+	mov qword [rbp - 8], rax
+	mov rax, 1
+	mov rcx, rax
+	mov rax, qword [rbp - 8]
+	add rax, rcx
 	jmp .ret
+.ret:
+	mov rsp, rbp
+	pop rbp
+	ret
+
+_add2:
+	push rbp
+	mov rbp, rsp
+	sub rsp, 0
+	sub rsp, 8
+	mov rax, qword [rbp + 16]
+	mov qword [rsp + 0], rax
+	call _add
+	add rsp, 8
 .ret:
 	mov rsp, rbp
 	pop rbp
