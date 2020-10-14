@@ -110,9 +110,20 @@ private:
 	ParseCursor pc;
 	Functions functions;
 	Scope scope;
+	class LabelManager {
+		private:
+			size_t loopNum;
+			size_t ifNum;
+		public:
+			LabelManager() : loopNum(0), ifNum(0) {};
+
+			size_t getLoopNum() noexcept { return loopNum++; }
+			size_t getIfNum() noexcept { return ifNum++; }
+	} labelManager;
 
 	void evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack);
 	void generateStatement(std::stringstream& op, LocalStack& localStack);
+	void generateBlock(std::stringstream& op, LocalStack& localStack);
 	void generateFunction(std::stringstream& op);
 	void generateExtern(std::stringstream& op);
 public:

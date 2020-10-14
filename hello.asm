@@ -3,21 +3,6 @@
 	extern putchar
 
 section .text
-_print:
-	push rbp
-	mov rbp, rsp
-	xor rdx, rdx
-	mov rax, rsp
-	mov rcx, 16
-	div rcx
-	sub rsp, rdx
-	sub rsp, 32
-	mov rcx, qword [rbp + 16]
-	call putchar
-	mov rsp, rbp
-	pop rbp
-	ret
-
 _printInt:
 	push rbp
 	mov rbp, rsp
@@ -73,98 +58,43 @@ _printInt:
 	pop rbp
 	ret
 
-_test:
-	push rbp
-	mov rbp, rsp
-	sub rsp, 8
-	sub rsp, 8
-	xor rax, rax
-	mov qword [rbp - 8], rax
-	mov rax, 420
-	mov rcx, rax
-	mov rax, qword [rbp - 8]
-	sub rax, rcx
-	mov qword [rsp + 0], rax
-	call _printInt
-	add rsp, 8
-	jmp .ret
-	sub rsp, 8
-	mov rax, 420
-	mov qword [rsp + 0], rax
-	call _printInt
-	add rsp, 8
-.ret:
-	mov rsp, rbp
-	pop rbp
-	ret
-
 main:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 16
 	sub rsp, 0
-	call _test
-	add rsp, 0
-	sub rsp, 8
-	mov rax, 69
-	mov qword [rsp + 0], rax
-	call _printInt
-	add rsp, 8
-	sub rsp, 8
-	mov rax, 10
-	mov qword [rsp + 0], rax
-	call _print
-	add rsp, 8
+	mov rax, 1
+	cmp rax, 0
+	je .iff0
 	sub rsp, 8
 	mov rax, 1
 	mov qword [rsp + 0], rax
 	call _printInt
 	add rsp, 8
-	sub rsp, 8
-	mov rax, 10
-	mov qword [rsp + 0], rax
-	call _print
-	add rsp, 8
-	sub rsp, 8
+	jmp .ife0
+.iff0:
 	mov rax, 0
+	cmp rax, 0
+	je .iff1
+	sub rsp, 8
+	mov rax, 2
 	mov qword [rsp + 0], rax
 	call _printInt
 	add rsp, 8
+	jmp .ife1
+.iff1:
+	mov rax, 0
+	cmp rax, 0
+	je .iff2
+	jmp .ife2
+.iff2:
 	sub rsp, 8
-	mov rax, 10
-	mov qword [rsp + 0], rax
-	call _print
-	add rsp, 8
-	sub rsp, 8
-	xor rax, rax
-	mov qword [rbp - 8], rax
-	mov rax, 1
-	mov rcx, rax
-	mov rax, qword [rbp - 8]
-	sub rax, rcx
+	mov rax, 3
 	mov qword [rsp + 0], rax
 	call _printInt
 	add rsp, 8
-	sub rsp, 8
-	mov rax, 10
-	mov qword [rsp + 0], rax
-	call _print
-	add rsp, 8
-	sub rsp, 8
-	xor rax, rax
-	mov qword [rbp - 16], rax
-	mov rax, 69
-	mov rcx, rax
-	mov rax, qword [rbp - 16]
-	sub rax, rcx
-	mov qword [rsp + 0], rax
-	call _printInt
-	add rsp, 8
-	sub rsp, 8
-	mov rax, 10
-	mov qword [rsp + 0], rax
-	call _print
-	add rsp, 8
+.ife2:
+.ife1:
+.ife0:
 .ret:
 	mov rsp, rbp
 	pop rbp
