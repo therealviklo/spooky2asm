@@ -541,6 +541,61 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 		}
 		op << "\tjmp .ret\n";
 	}
+	else if (pc.tryParseWord("if"))
+	{
+		pc.skipWhitespace();
+		if (!pc.tryParse("(")) pc.error("expected '('");
+		ParseCursor exprCur = pc;
+		size_t paramLevel = 0;
+		while (paramLevel || *pc != ')')
+		{
+			if (*pc == '(') paramLevel++;
+			else if (*pc == ')') paramLevel--;
+			pc.move();
+		}
+		exprCur.setEnd(pc);
+		pc.move();
+		evaluateExpression(exprCur, op, localStack);
+
+		const auto ifNum = labelManager.getIfNum();
+
+		op <<	"\tcmp rax, 0\n"
+				"\tje .iff" << ifNum << "\n";
+		
+		pc.skipWhitespace();
+		if (pc.tryParse("{"))
+		{
+			generateBlock(op, localStack);
+		}
+		else
+		{
+			generateStatement(op, localStack);
+		}
+
+		pc.skipWhitespace();
+		if (pc.tryParseWord("else"))
+		{
+			pc.skipWhitespace();
+
+			op <<	"\tjmp .ife" << ifNum << "\n"
+					".iff" << ifNum << ":\n";
+
+			if (pc.tryParse("{"))
+			{
+				generateBlock(op, localStack);
+			}
+			else
+			{
+				generateStatement(op, localStack);
+			}
+
+			op << ".ife" << ifNum << ":\n";
+		}
+		else
+		{
+			op << ".iff" << ifNum << ":\n";
+		}
+	}
 	else
 	{
 		ParseCursor exprCur = pc;
@@ -548,6 +603,17 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 		exprCur.setEnd(pc);
 		pc.move();
 		evaluateExpression(exprCur, op, localStack);
+	}
+}
+
+void Parser::generateBlock(std::stringstream& op, LocalStack& localStack)
+{
+	LocalScope localScope(scope);
+	pc.skipWhitespace();
+	while (!pc.tryParse("}"))
+	{
+		generateStatement(op, localStack);
+		pc.skipWhitespace();
 	}
 }
 
@@ -610,12 +676,7 @@ void Parser::generateFunction(std::stringstream& op)
 	if (!pc.tryParse("{")) pc.error("expected '{'");
 
 	std::stringstream body;
-	pc.skipWhitespace();
-	while (!pc.tryParse("}"))
-	{
-		generateStatement(body, localStack);
-		pc.skipWhitespace();
-	}
+	generateBlock(body, localStack);
 
 	op << getFuncLabel(funcName) << ":\n";
 	op << localStack.getStackInit().str();
