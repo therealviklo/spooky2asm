@@ -7,14 +7,14 @@ func add(x: Int)
 
 func add2(x: Int)
 {
-	add(add(x));
+	add(x);
 }
 
 func main()
 {
 	if (1)
 	{
-		printInt(1);
+		printInt(1);;
 	}
 	else if (0)
 	{
