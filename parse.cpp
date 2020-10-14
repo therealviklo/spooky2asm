@@ -623,11 +623,15 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 	}
 	else
 	{
-		ParseCursor exprCur = pc;
-		while (*pc != ';') pc.move();
-		exprCur.setEnd(pc);
-		pc.move();
-		evaluateExpression(exprCur, op, localStack);
+		pc.skipWhitespace();
+		if (!pc.tryParse(";"))
+		{
+			ParseCursor exprCur = pc;
+			while (*pc != ';') pc.move();
+			exprCur.setEnd(pc);
+			pc.move();
+			evaluateExpression(exprCur, op, localStack);
+		}
 	}
 }
 
