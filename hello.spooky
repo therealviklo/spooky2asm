@@ -12,7 +12,7 @@ func add2(x: Int)
 
 func main()
 {
-	if (2 >= 2)
+	if (-3 < -2)
 	{
 		printInt(69);
 	}

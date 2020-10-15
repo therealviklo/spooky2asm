@@ -333,12 +333,11 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 			if (evaluateExpression(secondPc, op, localStack).empty())
 				pc.error("expression does not return value");
 
-			op <<	"\tmov rcx, rax\n"
-					"\tmov rax, " << tmp << "\n"
+			op <<	"\tmov rcx, " << tmp << "\n"
 					"\tsub rcx, rax\n"
 					"\txor rax, rax\n"
 					"\tcmp rcx, 0\n"
-					"\tsetle al\n";
+					"\tsetge al\n";
 
 			return "Boolean";
 		}
@@ -358,12 +357,11 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 			if (evaluateExpression(secondPc, op, localStack).empty())
 				pc.error("expression does not return value");
 
-			op <<	"\tmov rcx, rax\n"
-					"\tmov rax, " << tmp << "\n"
+			op <<	"\tmov rcx, " << tmp << "\n"
 					"\tsub rcx, rax\n"
 					"\txor rax, rax\n"
 					"\tcmp rcx, 0\n"
-					"\tsetge al\n";
+					"\tsetle al\n";
 
 			return "Boolean";
 		}
@@ -422,12 +420,11 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 				if (evaluateExpression(secondPc, op, localStack).empty())
 					pc.error("expression does not return value");
 
-				op <<	"\tmov rcx, rax\n"
-						"\tmov rax, " << tmp << "\n"
+				op <<	"\tmov rcx, " << tmp << "\n"
 						"\tsub rcx, rax\n"
 						"\txor rax, rax\n"
 						"\tcmp rcx, 0\n"
-						"\tsetl al\n";
+						"\tsetg al\n";
 			}
 			return "Boolean";
 			case '<':
@@ -446,12 +443,11 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 				if (evaluateExpression(secondPc, op, localStack).empty())
 					pc.error("expression does not return value");
 
-				op <<	"\tmov rcx, rax\n"
-						"\tmov rax, " << tmp << "\n"
+				op <<	"\tmov rcx, " << tmp << "\n"
 						"\tsub rcx, rax\n"
 						"\txor rax, rax\n"
 						"\tcmp rcx, 0\n"
-						"\tsetg al\n";
+						"\tsetl al\n";
 			}
 			return "Boolean";
 			case '+':
