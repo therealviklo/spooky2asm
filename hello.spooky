@@ -12,20 +12,8 @@ func add2(x: Int)
 
 func main()
 {
-	if (1)
+	if (2 >= 2)
 	{
-		printInt(1);;
-	}
-	else if (0)
-	{
-		printInt(2);
-	}
-	else if (0)
-	{
-
-	}
-	else
-	{
-		printInt(3);
+		printInt(69);
 	}
 }
