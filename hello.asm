@@ -91,40 +91,24 @@ _add2:
 main:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 0
-	mov rax, 1
+	sub rsp, 8
+	mov rax, 2
+	mov qword [rbp - 8], rax
+	mov rax, 2
+	mov rcx, rax
+	mov rax, qword [rbp - 8]
+	sub rcx, rax
+	xor rax, rax
+	cmp rcx, 0
+	setle al
 	cmp rax, 0
 	je .iff0
 	sub rsp, 8
-	mov rax, 1
+	mov rax, 69
 	mov qword [rsp + 0], rax
 	call _printInt
 	add rsp, 8
-	jmp .ife0
 .iff0:
-	mov rax, 0
-	cmp rax, 0
-	je .iff1
-	sub rsp, 8
-	mov rax, 2
-	mov qword [rsp + 0], rax
-	call _printInt
-	add rsp, 8
-	jmp .ife1
-.iff1:
-	mov rax, 0
-	cmp rax, 0
-	je .iff2
-	jmp .ife2
-.iff2:
-	sub rsp, 8
-	mov rax, 3
-	mov qword [rsp + 0], rax
-	call _printInt
-	add rsp, 8
-.ife2:
-.ife1:
-.ife0:
 .ret:
 	mov rsp, rbp
 	pop rbp

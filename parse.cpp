@@ -244,12 +244,22 @@ LocalScope::~LocalScope()
 std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack)
 {
 	auto precedence = [](ParseCursor& c) -> int {
-		if (c.tryParse("=")) return 3;
+		if (c.tryParse("==")) return 4; // Den här är lägre än = men måste kollas innan
+
+		if (c.tryParse("=")) return 5;
+
+		if (c.tryParse(">=")) return 3;
+		if (c.tryParse(">")) return 3;
+		if (c.tryParse("<=")) return 3;
+		if (c.tryParse("<")) return 3;
+
 		if (c.tryParse("+")) return 2;
 		if (c.tryParse("-")) return 2;
+
 		if (c.tryParse("%")) return 1;
 		if (c.tryParse("*")) return 1;
 		if (c.tryParse("/")) return 1;
+
 		return 0;
 	};
 
@@ -282,6 +292,82 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 
 	if (currOp)
 	{
+		if (peekcmp(currOp, "=="))
+		{
+			ParseCursor firstPc = pc;
+			firstPc.setEnd(currOp);
+			if (evaluateExpression(firstPc, op, localStack).empty())
+				pc.error("expression does not return value");
+
+			std::string tmp = localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			ParseCursor secondPc = pc;
+			secondPc.skipTo(currOpEnd);
+			secondPc.setEnd(pc.getEnd());
+			if (evaluateExpression(secondPc, op, localStack).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, rax\n"
+					"\tmov rax, " << tmp << "\n"
+					"\tsub rcx, rax\n"
+					"\txor rax, rax\n"
+					"\tcmp rcx, 0\n"
+					"\tsete al\n";
+
+			return "Boolean";
+		}
+		else if (peekcmp(currOp, ">="))
+		{
+			ParseCursor firstPc = pc;
+			firstPc.setEnd(currOp);
+			if (evaluateExpression(firstPc, op, localStack).empty())
+				pc.error("expression does not return value");
+
+			std::string tmp = localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			ParseCursor secondPc = pc;
+			secondPc.skipTo(currOpEnd);
+			secondPc.setEnd(pc.getEnd());
+			if (evaluateExpression(secondPc, op, localStack).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, rax\n"
+					"\tmov rax, " << tmp << "\n"
+					"\tsub rcx, rax\n"
+					"\txor rax, rax\n"
+					"\tcmp rcx, 0\n"
+					"\tsetle al\n";
+
+			return "Boolean";
+		}
+		else if (peekcmp(currOp, "<="))
+		{
+			ParseCursor firstPc = pc;
+			firstPc.setEnd(currOp);
+			if (evaluateExpression(firstPc, op, localStack).empty())
+				pc.error("expression does not return value");
+
+			std::string tmp = localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			ParseCursor secondPc = pc;
+			secondPc.skipTo(currOpEnd);
+			secondPc.setEnd(pc.getEnd());
+			if (evaluateExpression(secondPc, op, localStack).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, rax\n"
+					"\tmov rax, " << tmp << "\n"
+					"\tsub rcx, rax\n"
+					"\txor rax, rax\n"
+					"\tcmp rcx, 0\n"
+					"\tsetge al\n";
+
+			return "Boolean";
+		}
+
 		switch (*currOp)
 		{
 			case '=':
@@ -320,6 +406,54 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 				return scope.get(name).type;
 			}
 			break; // Borde inte komma hit då det är en return ovan.
+			case '>':
+			{
+				ParseCursor firstPc = pc;
+				firstPc.setEnd(currOp);
+				if (evaluateExpression(firstPc, op, localStack).empty())
+					pc.error("expression does not return value");
+
+				std::string tmp = localStack.getQword();
+				op << "\tmov " << tmp << ", rax\n";
+
+				ParseCursor secondPc = pc;
+				secondPc.skipTo(currOpEnd);
+				secondPc.setEnd(pc.getEnd());
+				if (evaluateExpression(secondPc, op, localStack).empty())
+					pc.error("expression does not return value");
+
+				op <<	"\tmov rcx, rax\n"
+						"\tmov rax, " << tmp << "\n"
+						"\tsub rcx, rax\n"
+						"\txor rax, rax\n"
+						"\tcmp rcx, 0\n"
+						"\tsetl al\n";
+			}
+			return "Boolean";
+			case '<':
+			{
+				ParseCursor firstPc = pc;
+				firstPc.setEnd(currOp);
+				if (evaluateExpression(firstPc, op, localStack).empty())
+					pc.error("expression does not return value");
+
+				std::string tmp = localStack.getQword();
+				op << "\tmov " << tmp << ", rax\n";
+
+				ParseCursor secondPc = pc;
+				secondPc.skipTo(currOpEnd);
+				secondPc.setEnd(pc.getEnd());
+				if (evaluateExpression(secondPc, op, localStack).empty())
+					pc.error("expression does not return value");
+
+				op <<	"\tmov rcx, rax\n"
+						"\tmov rax, " << tmp << "\n"
+						"\tsub rcx, rax\n"
+						"\txor rax, rax\n"
+						"\tcmp rcx, 0\n"
+						"\tsetg al\n";
+			}
+			return "Boolean";
 			case '+':
 			{
 				ParseCursor firstPc = pc;
