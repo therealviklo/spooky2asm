@@ -5,17 +5,7 @@ func add(x: Int)
 	return x + 1;
 }
 
-func add2(x: Int)
-{
-	add(x);
-}
-
 func main()
 {
-	i: Int = 3;
-	if (1)
-	{
-		j: Int = 4;
-		printInt(j);
-	}
+	printInt(add(1));
 }
