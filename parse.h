@@ -104,6 +104,12 @@ struct Function
 };
 typedef std::unordered_map<std::string, Function> Functions;
 
+struct FunctionData
+{
+	LocalStack localStack;
+	std::string retType;
+};
+
 class Parser
 {
 private:
@@ -122,9 +128,9 @@ private:
 	} labelManager;
 
 	// Return: typen
-	std::string evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack);
-	void generateStatement(std::stringstream& op, LocalStack& localStack);
-	void generateBlock(std::stringstream& op, LocalStack& localStack);
+	std::string evaluateExpression(ParseCursor pc, std::stringstream& op, FunctionData& fd);
+	void generateStatement(std::stringstream& op, FunctionData& fd);
+	void generateBlock(std::stringstream& op, FunctionData& fd);
 	void generateFunction(std::stringstream& op);
 	void generateExtern(std::stringstream& op);
 public:

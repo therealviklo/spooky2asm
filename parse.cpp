@@ -241,7 +241,7 @@ LocalScope::~LocalScope()
 	scope.removeScope();
 }
 
-std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, LocalStack& localStack)
+std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, FunctionData& fd)
 {
 	auto precedence = [](ParseCursor& c) -> int {
 		if (c.tryParse("==")) return 4; // Den här är lägre än = men måste kollas innan
@@ -296,16 +296,16 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 		{
 			ParseCursor firstPc = pc;
 			firstPc.setEnd(currOp);
-			if (evaluateExpression(firstPc, op, localStack).empty())
+			if (evaluateExpression(firstPc, op, fd).empty())
 				pc.error("expression does not return value");
 
-			std::string tmp = localStack.getQword();
+			std::string tmp = fd.localStack.getQword();
 			op << "\tmov " << tmp << ", rax\n";
 
 			ParseCursor secondPc = pc;
 			secondPc.skipTo(currOpEnd);
 			secondPc.setEnd(pc.getEnd());
-			if (evaluateExpression(secondPc, op, localStack).empty())
+			if (evaluateExpression(secondPc, op, fd).empty())
 				pc.error("expression does not return value");
 
 			op <<	"\tmov rcx, rax\n"
@@ -321,16 +321,16 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 		{
 			ParseCursor firstPc = pc;
 			firstPc.setEnd(currOp);
-			if (evaluateExpression(firstPc, op, localStack).empty())
+			if (evaluateExpression(firstPc, op, fd).empty())
 				pc.error("expression does not return value");
 
-			std::string tmp = localStack.getQword();
+			std::string tmp = fd.localStack.getQword();
 			op << "\tmov " << tmp << ", rax\n";
 
 			ParseCursor secondPc = pc;
 			secondPc.skipTo(currOpEnd);
 			secondPc.setEnd(pc.getEnd());
-			if (evaluateExpression(secondPc, op, localStack).empty())
+			if (evaluateExpression(secondPc, op, fd).empty())
 				pc.error("expression does not return value");
 
 			op <<	"\tmov rcx, " << tmp << "\n"
@@ -345,16 +345,16 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 		{
 			ParseCursor firstPc = pc;
 			firstPc.setEnd(currOp);
-			if (evaluateExpression(firstPc, op, localStack).empty())
+			if (evaluateExpression(firstPc, op, fd).empty())
 				pc.error("expression does not return value");
 
-			std::string tmp = localStack.getQword();
+			std::string tmp = fd.localStack.getQword();
 			op << "\tmov " << tmp << ", rax\n";
 
 			ParseCursor secondPc = pc;
 			secondPc.skipTo(currOpEnd);
 			secondPc.setEnd(pc.getEnd());
-			if (evaluateExpression(secondPc, op, localStack).empty())
+			if (evaluateExpression(secondPc, op, fd).empty())
 				pc.error("expression does not return value");
 
 			op <<	"\tmov rcx, " << tmp << "\n"
@@ -390,12 +390,12 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 					if (!pc.tryParse(":")) pc.error("invalid syntax, expected ':'");
 					pc.skipWhitespace();
 					const std::string typeName = pc.readIdentifier();
-					scope.add(name, {typeName, localStack.getQword()});
+					scope.add(name, {typeName, fd.localStack.getQword()});
 					pc.skipWhitespace();
 					if (!pc.tryParse("=")) pc.error("invalid syntax, expected '=' (2)");
 				}
 
-				if (evaluateExpression(pc, op, localStack).empty())
+				if (evaluateExpression(pc, op, fd).empty())
 					pc.error("expression does not return value");
 
 				const std::string loc = scope.get(name).location;
@@ -408,16 +408,16 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 			{
 				ParseCursor firstPc = pc;
 				firstPc.setEnd(currOp);
-				if (evaluateExpression(firstPc, op, localStack).empty())
+				if (evaluateExpression(firstPc, op, fd).empty())
 					pc.error("expression does not return value");
 
-				std::string tmp = localStack.getQword();
+				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, localStack).empty())
+				if (evaluateExpression(secondPc, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, " << tmp << "\n"
@@ -431,16 +431,16 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 			{
 				ParseCursor firstPc = pc;
 				firstPc.setEnd(currOp);
-				if (evaluateExpression(firstPc, op, localStack).empty())
+				if (evaluateExpression(firstPc, op, fd).empty())
 					pc.error("expression does not return value");
 
-				std::string tmp = localStack.getQword();
+				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, localStack).empty())
+				if (evaluateExpression(secondPc, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, " << tmp << "\n"
@@ -461,17 +461,17 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 				else
 				{
 					firstPc.setEnd(currOp);
-					if (evaluateExpression(firstPc, op, localStack).empty())
+					if (evaluateExpression(firstPc, op, fd).empty())
 						pc.error("expression does not return value");
 				}
 
-				std::string tmp = localStack.getQword();
+				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, localStack).empty())
+				if (evaluateExpression(secondPc, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, rax\n"
@@ -490,17 +490,17 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 				else
 				{
 					firstPc.setEnd(currOp);
-					if (evaluateExpression(firstPc, op, localStack).empty())
+					if (evaluateExpression(firstPc, op, fd).empty())
 						pc.error("expression does not return value");
 				}
 
-				std::string tmp = localStack.getQword();
+				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, localStack).empty())
+				if (evaluateExpression(secondPc, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, rax\n"
@@ -512,16 +512,16 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 			{
 				ParseCursor firstPc = pc;
 				firstPc.setEnd(currOp);
-				if (evaluateExpression(firstPc, op, localStack).empty())
+				if (evaluateExpression(firstPc, op, fd).empty())
 					pc.error("expression does not return value");
 
-				std::string tmp = localStack.getQword();
+				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, localStack).empty())
+				if (evaluateExpression(secondPc, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, rax\n"
@@ -535,16 +535,16 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 			{
 				ParseCursor firstPc = pc;
 				firstPc.setEnd(currOp);
-				if (evaluateExpression(firstPc, op, localStack).empty())
+				if (evaluateExpression(firstPc, op, fd).empty())
 					pc.error("expression does not return value");
 
-				std::string tmp = localStack.getQword();
+				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, localStack).empty())
+				if (evaluateExpression(secondPc, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, rax\n"
@@ -556,16 +556,16 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 			{
 				ParseCursor firstPc = pc;
 				firstPc.setEnd(currOp);
-				if (evaluateExpression(firstPc, op, localStack).empty())
+				if (evaluateExpression(firstPc, op, fd).empty())
 					pc.error("expression does not return value");
 
-				std::string tmp = localStack.getQword();
+				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
 				ParseCursor secondPc = pc;
 				secondPc.skipTo(currOpEnd);
 				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, localStack).empty())
+				if (evaluateExpression(secondPc, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, rax\n"
@@ -598,7 +598,7 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 				closeParamPc.move();
 			}
 			paramPc.setEnd(closeParamPc);
-			return evaluateExpression(paramPc, op, localStack);
+			return evaluateExpression(paramPc, op, fd);
 		}
 		else
 		{
@@ -645,7 +645,7 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 					// Sätt kommatecknet eller parentesen som slutet på argCur.
 					argCur.setEnd(pc);
 					// Evaluera.
-					if (evaluateExpression(argCur, op, localStack).empty())
+					if (evaluateExpression(argCur, op, fd).empty())
 						pc.error("expression does not return value");
 					// Flytta till stacken.
 					op << "\tmov qword [rsp + " << currParamOffset << "], rax\n";
@@ -679,7 +679,7 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Lo
 	return "";
 }
 
-void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
+void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 {
 	if (pc.tryParseWord("return"))
 	{
@@ -690,7 +690,7 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 			while (*pc != ';') pc.move();
 			exprCur.setEnd(pc);
 			pc.move();
-			if (evaluateExpression(exprCur, op, localStack).empty())
+			if (evaluateExpression(exprCur, op, fd).empty())
 				pc.error("expression does not return value");
 		}
 		op << "\tjmp .ret\n";
@@ -714,7 +714,7 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 			}
 			exprCur.setEnd(pc);
 			pc.move();
-			if (evaluateExpression(exprCur, op, localStack).empty())
+			if (evaluateExpression(exprCur, op, fd).empty())
 				pc.error("expression does not return value");
 
 			op <<	"\tcmp rax, 0\n"
@@ -723,11 +723,11 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 			pc.skipWhitespace();
 			if (pc.tryParse("{"))
 			{
-				generateBlock(op, localStack);
+				generateBlock(op, fd);
 			}
 			else
 			{
-				generateStatement(op, localStack);
+				generateStatement(op, fd);
 			}
 		}
 
@@ -744,11 +744,11 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 
 				if (pc.tryParse("{"))
 				{
-					generateBlock(op, localStack);
+					generateBlock(op, fd);
 				}
 				else
 				{
-					generateStatement(op, localStack);
+					generateStatement(op, fd);
 				}
 
 				op << ".ife" << ifNum << ":\n";
@@ -768,18 +768,18 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 			while (*pc != ';') pc.move();
 			exprCur.setEnd(pc);
 			pc.move();
-			evaluateExpression(exprCur, op, localStack);
+			evaluateExpression(exprCur, op, fd);
 		}
 	}
 }
 
-void Parser::generateBlock(std::stringstream& op, LocalStack& localStack)
+void Parser::generateBlock(std::stringstream& op, FunctionData& fd)
 {
 	LocalScope localScope(scope);
 	pc.skipWhitespace();
 	while (!pc.tryParse("}"))
 	{
-		generateStatement(op, localStack);
+		generateStatement(op, fd);
 		pc.skipWhitespace();
 	}
 }
@@ -790,7 +790,7 @@ void Parser::generateFunction(std::stringstream& op)
 	if (functions.count(funcName)) pc.error("function redefinition");
 	std::vector<std::string> argTypes;
 
-	LocalStack localStack;
+	FunctionData fd;
 	LocalScope localScope(scope);
 
 	pc.skipWhitespace();
@@ -843,10 +843,10 @@ void Parser::generateFunction(std::stringstream& op)
 	if (!pc.tryParse("{")) pc.error("expected '{'");
 
 	std::stringstream body;
-	generateBlock(body, localStack);
+	generateBlock(body, fd);
 
 	op << getFuncLabel(funcName) << ":\n";
-	op << localStack.getStackInit().str();
+	op << fd.localStack.getStackInit().str();
 	op << body.str();
 	op <<	".ret:\n"
 			"\tmov rsp, rbp\n"
