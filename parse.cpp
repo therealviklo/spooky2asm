@@ -697,6 +697,8 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 	}
 	else if (pc.tryParseWord("if"))
 	{
+		const auto ifNum = labelManager.getIfNum();
+		
 		{
 			LocalScope localScope(scope);
 
@@ -714,8 +716,6 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 			pc.move();
 			if (evaluateExpression(exprCur, op, localStack).empty())
 				pc.error("expression does not return value");
-
-			const auto ifNum = labelManager.getIfNum();
 
 			op <<	"\tcmp rax, 0\n"
 					"\tje .iff" << ifNum << "\n";
