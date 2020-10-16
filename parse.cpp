@@ -684,7 +684,8 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 	if (pc.tryParseWord("return"))
 	{
 		pc.skipWhitespace();
-		if (!pc.tryParse(";"))
+		if (fd.retType.empty() && !pc.tryParse(";")) pc.error("expected ';'");
+		else
 		{
 			ParseCursor exprCur = pc;
 			while (*pc != ';') pc.move();
@@ -837,7 +838,14 @@ void Parser::generateFunction(std::stringstream& op)
 		}
 	}
 
-	functions.insert({funcName, {std::move(argTypes), ""}});
+	pc.skipWhitespace();
+	if (pc.tryParse("->"))
+	{
+		pc.skipWhitespace();
+		fd.retType = pc.readIdentifier();
+	}
+
+	functions.insert({funcName, {std::move(argTypes), fd.retType}});
 
 	pc.skipWhitespace();
 	if (!pc.tryParse("{")) pc.error("expected '{'");

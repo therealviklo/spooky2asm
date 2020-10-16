@@ -74,37 +74,19 @@ _add:
 	pop rbp
 	ret
 
-_add2:
+main:
 	push rbp
 	mov rbp, rsp
 	sub rsp, 0
 	sub rsp, 8
-	mov rax, qword [rbp + 16]
+	sub rsp, 8
+	mov rax, 1
 	mov qword [rsp + 0], rax
 	call _add
 	add rsp, 8
-.ret:
-	mov rsp, rbp
-	pop rbp
-	ret
-
-main:
-	push rbp
-	mov rbp, rsp
-	sub rsp, 16
-	mov rax, 3
-	mov qword [rbp - 8], rax
-	mov rax, 1
-	cmp rax, 0
-	je .iff0
-	mov rax, 4
-	mov qword [rbp - 16], rax
-	sub rsp, 8
-	mov rax, qword [rbp - 16]
 	mov qword [rsp + 0], rax
 	call _printInt
 	add rsp, 8
-.iff0:
 .ret:
 	mov rsp, rbp
 	pop rbp
