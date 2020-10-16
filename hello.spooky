@@ -12,8 +12,10 @@ func add2(x: Int)
 
 func main()
 {
-	if (-3 < -2)
+	i: Int = 3;
+	if (1)
 	{
-		printInt(69);
+		j: Int = 4;
+		printInt(j);
 	}
 }
