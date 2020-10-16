@@ -697,44 +697,30 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 	}
 	else if (pc.tryParseWord("if"))
 	{
-		pc.skipWhitespace();
-		if (!pc.tryParse("(")) pc.error("expected '('");
-		ParseCursor exprCur = pc;
-		size_t paramLevel = 0;
-		while (paramLevel || *pc != ')')
 		{
-			if (*pc == '(') paramLevel++;
-			else if (*pc == ')') paramLevel--;
-			pc.move();
-		}
-		exprCur.setEnd(pc);
-		pc.move();
-		if (evaluateExpression(exprCur, op, localStack).empty())
-			pc.error("expression does not return value");
+			LocalScope localScope(scope);
 
-		const auto ifNum = labelManager.getIfNum();
-
-		op <<	"\tcmp rax, 0\n"
-				"\tje .iff" << ifNum << "\n";
-		
-		pc.skipWhitespace();
-		if (pc.tryParse("{"))
-		{
-			generateBlock(op, localStack);
-		}
-		else
-		{
-			generateStatement(op, localStack);
-		}
-
-		pc.skipWhitespace();
-		if (pc.tryParseWord("else"))
-		{
 			pc.skipWhitespace();
+			if (!pc.tryParse("(")) pc.error("expected '('");
+			ParseCursor exprCur = pc;
+			size_t paramLevel = 0;
+			while (paramLevel || *pc != ')')
+			{
+				if (*pc == '(') paramLevel++;
+				else if (*pc == ')') paramLevel--;
+				pc.move();
+			}
+			exprCur.setEnd(pc);
+			pc.move();
+			if (evaluateExpression(exprCur, op, localStack).empty())
+				pc.error("expression does not return value");
 
-			op <<	"\tjmp .ife" << ifNum << "\n"
-					".iff" << ifNum << ":\n";
+			const auto ifNum = labelManager.getIfNum();
 
+			op <<	"\tcmp rax, 0\n"
+					"\tje .iff" << ifNum << "\n";
+			
+			pc.skipWhitespace();
 			if (pc.tryParse("{"))
 			{
 				generateBlock(op, localStack);
@@ -743,12 +729,34 @@ void Parser::generateStatement(std::stringstream& op, LocalStack& localStack)
 			{
 				generateStatement(op, localStack);
 			}
-
-			op << ".ife" << ifNum << ":\n";
 		}
-		else
+
 		{
-			op << ".iff" << ifNum << ":\n";
+			LocalScope localScope(scope);
+
+			pc.skipWhitespace();
+			if (pc.tryParseWord("else"))
+			{
+				pc.skipWhitespace();
+
+				op <<	"\tjmp .ife" << ifNum << "\n"
+						".iff" << ifNum << ":\n";
+
+				if (pc.tryParse("{"))
+				{
+					generateBlock(op, localStack);
+				}
+				else
+				{
+					generateStatement(op, localStack);
+				}
+
+				op << ".ife" << ifNum << ":\n";
+			}
+			else
+			{
+				op << ".iff" << ifNum << ":\n";
+			}
 		}
 	}
 	else

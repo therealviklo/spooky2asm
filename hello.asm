@@ -91,29 +91,16 @@ _add2:
 main:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 24
-	xor rax, rax
-	mov qword [rbp - 8], rax
+	sub rsp, 16
 	mov rax, 3
-	mov rcx, rax
-	mov rax, qword [rbp - 8]
-	sub rax, rcx
-	mov qword [rbp - 16], rax
-	xor rax, rax
-	mov qword [rbp - 24], rax
-	mov rax, 2
-	mov rcx, rax
-	mov rax, qword [rbp - 24]
-	sub rax, rcx
-	mov rcx, qword [rbp - 16]
-	sub rcx, rax
-	xor rax, rax
-	cmp rcx, 0
-	setl al
+	mov qword [rbp - 8], rax
+	mov rax, 1
 	cmp rax, 0
 	je .iff0
+	mov rax, 4
+	mov qword [rbp - 16], rax
 	sub rsp, 8
-	mov rax, 69
+	mov rax, qword [rbp - 16]
 	mov qword [rsp + 0], rax
 	call _printInt
 	add rsp, 8
