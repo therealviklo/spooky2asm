@@ -22,6 +22,24 @@ bool peekcmp(const char* str, const char* cmp) noexcept
 	return true;
 }
 
+void ParseCursor::skipWhitespace()
+{
+	while (isspace(*cur))
+	{
+		if (cur >= end) break;
+		if (*cur == '\n')
+		{
+			x = 1;
+			y++;
+		}
+		else
+		{
+			x++;
+		}
+		cur++;
+	}
+}
+
 ParseCursor::ParseCursor(const char* str)
 	: cur(str),
 	  end((const char *)~0ull),
@@ -33,11 +51,6 @@ ParseCursor::ParseCursor(const char* str)
 		x = 1;
 		y = 1;
 	}
-}
-
-void ParseCursor::skipTo(const char* pos)
-{
-	while (cur < pos) move();
 }
 
 void ParseCursor::skipParen()
@@ -86,26 +99,10 @@ void ParseCursor::move(size_t num)
 	if (cur > end) error("unexpected end of sequence");
 }
 
-void ParseCursor::skipWhitespace()
-{
-	while (isspace(*cur))
-	{
-		if (cur >= end) break;
-		if (*cur == '\n')
-		{
-			x = 1;
-			y++;
-		}
-		else
-		{
-			x++;
-		}
-		cur++;
-	}
-}
-
 bool ParseCursor::tryParse(const char* cmpStr)
 {
+	skipWhitespace();
+
 	const char* peekStr = cur;
 	size_t lx = x;
 	size_t ly = y;
@@ -133,6 +130,8 @@ bool ParseCursor::tryParse(const char* cmpStr)
 
 bool ParseCursor::tryParseWord(const char* cmpStr)
 {
+	skipWhitespace();
+
 	const char* peekStr = cur;
 	size_t lx = x;
 	size_t ly = y;
@@ -161,6 +160,8 @@ bool ParseCursor::tryParseWord(const char* cmpStr)
 
 std::string ParseCursor::readIdentifier()
 {
+	skipWhitespace();
+
 	std::stringstream ss;
 	if (!validNameChar(*cur)) error("name expected");
 	if (isdigit(*cur)) error("names cannot start with a digit");
@@ -185,6 +186,18 @@ std::string ParseCursor::readIdentifier()
 inline void ParseCursor::error(const char* msg)
 {
 	throw InvalidSyntaxException(msg, x, y);
+}
+
+char ParseCursor::operator*()
+{
+	skipWhitespace();
+	return *cur;
+}
+
+const char* ParseCursor::str()
+{
+	skipWhitespace();
+	return cur;
 }
 
 std::string LocalStack::getQword()
@@ -288,7 +301,6 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 
 		void skipOperand()
 		{
-			pc.skipWhitespace();
 			if (pc.tryParse("("))
 			{
 				pc.skipParen();
@@ -309,7 +321,6 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 		// Return: vid slutet eller ej
 		bool parseOp()
 		{
-			pc.skipWhitespace();
 			if (pc.atEnd()) return true;
 			ParseCursor opStart = pc;
 			auto precRet = precedence(pc);
@@ -330,7 +341,6 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 			  first(pc),
 			  second(pc)
 		{
-			pc.skipWhitespace();
 			if (*pc == '+' || *pc == '-')
 			{
 				parseOp();
@@ -402,7 +412,6 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 			case EO_ASSIGN:
 			{
 				std::stringstream nameSS;
-				pc.skipWhitespace();
 				while (validNameChar(*pc))
 				{
 					nameSS << *pc;
@@ -411,18 +420,14 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 				const std::string name = nameSS.str();
 				if (scope.has(name))
 				{
-					pc.skipWhitespace();
 					if (!pc.tryParse("=")) pc.error("invalid syntax, expected '='");
 				}
 				else
 				{
 					if (functions.count(name)) pc.error("variable name is already a function");
-					pc.skipWhitespace();
 					if (!pc.tryParse(":")) pc.error("invalid syntax, expected ':'");
-					pc.skipWhitespace();
 					const std::string typeName = pc.readIdentifier();
 					scope.add(name, {typeName, fd.localStack.getQword()});
-					pc.skipWhitespace();
 					if (!pc.tryParse("=")) pc.error("invalid syntax, expected '=' (2)");
 				}
 
@@ -570,10 +575,9 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 			return "Int";
 			case EO_NOOP:
 			{
-				splitter.first.skipWhitespace();
 				if (isdigit(*splitter.first))
 				{
-					op <<	"\tmov rax, " << std::strtoll(splitter.first, nullptr, 0) << "\n";
+					op <<	"\tmov rax, " << std::strtoll(splitter.first.str(), nullptr, 0) << "\n";
 
 					return "Int";
 				}
@@ -599,7 +603,6 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 					if (scope.has(id))
 					{
 						const std::string loc = scope.get(id).location;
-						splitter.first.skipWhitespace();
 						if (!splitter.first.atEnd()) splitter.first.error("invalid syntax");
 						op << "\tmov rax, " << loc << "\n";
 
@@ -611,7 +614,6 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 						const std::string funcLabel = getFuncLabel(id);
 						
 						// Skippa till och över parantesen.
-						splitter.first.skipWhitespace();
 						if (!splitter.first.tryParse("(")) splitter.first.error("expected '('");
 
 						auto& func = functions.at(id);
@@ -621,7 +623,6 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 
 						// Läs in och evaluera uttrycken och flytta dem till dit de ska.
 						size_t currParamOffset = 0;
-						splitter.first.skipWhitespace();
 						while (!splitter.first.tryParse(")"))
 						{
 							// Skapa ParseCursorn för uttrycket.
@@ -646,7 +647,6 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 							currParamOffset += 8;
 							if (splitter.first.tryParse(","))
 							{
-								splitter.first.skipWhitespace();
 								if (*splitter.first == ')') splitter.first.error("expected expression");
 							}
 						}
@@ -677,7 +677,6 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 {
 	if (pc.tryParseWord("return"))
 	{
-		pc.skipWhitespace();
 		if (fd.retType.empty() && !pc.tryParse(";")) pc.error("expected ';'");
 		else
 		{
@@ -697,7 +696,6 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 		{
 			LocalScope localScope(scope);
 
-			pc.skipWhitespace();
 			if (!pc.tryParse("(")) pc.error("expected '('");
 			ParseCursor exprCur = pc;
 			size_t paramLevel = 0;
@@ -715,7 +713,6 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 			op <<	"\tcmp rax, 0\n"
 					"\tje .iff" << ifNum << "\n";
 			
-			pc.skipWhitespace();
 			if (pc.tryParse("{"))
 			{
 				generateBlock(op, fd);
@@ -729,11 +726,8 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 		{
 			LocalScope localScope(scope);
 
-			pc.skipWhitespace();
 			if (pc.tryParseWord("else"))
 			{
-				pc.skipWhitespace();
-
 				op <<	"\tjmp .ife" << ifNum << "\n"
 						".iff" << ifNum << ":\n";
 
@@ -756,7 +750,6 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 	}
 	else
 	{
-		pc.skipWhitespace();
 		if (!pc.tryParse(";"))
 		{
 			ParseCursor exprCur = pc;
@@ -771,11 +764,9 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 void Parser::generateBlock(std::stringstream& op, FunctionData& fd)
 {
 	LocalScope localScope(scope);
-	pc.skipWhitespace();
 	while (!pc.tryParse("}"))
 	{
 		generateStatement(op, fd);
-		pc.skipWhitespace();
 	}
 }
 
@@ -788,10 +779,8 @@ void Parser::generateFunction(std::stringstream& op)
 	FunctionData fd;
 	LocalScope localScope(scope);
 
-	pc.skipWhitespace();
 	if (!pc.tryParse("(")) pc.error("expected '('");
 	size_t paramOffset = 0;
-	pc.skipWhitespace();
 	if (!pc.tryParse(")"))
 	{
 		while (true)
@@ -800,10 +789,8 @@ void Parser::generateFunction(std::stringstream& op)
 			if (scope.has(varName)) pc.error("redefinition of variable");
 			if (functions.count(varName)) pc.error("variable name is already a function");
 			
-			pc.skipWhitespace();
 			if (!pc.tryParse(":")) pc.error("expected ':'");
 		
-			pc.skipWhitespace();
 			std::string typeName = pc.readIdentifier();
 			argTypes.push_back(typeName);
 
@@ -815,33 +802,27 @@ void Parser::generateFunction(std::stringstream& op)
 			
 			scope.add(std::move(varName), {std::move(typeName), ss.str()});
 			
-			pc.skipWhitespace();
-
-			if (pc.tryParse(","))
+			if (!pc.tryParse(","))
 			{
-				pc.skipWhitespace();
-			}
-			else if (pc.tryParse(")"))
-			{
-				break;
-			}
-			else
-			{
-				pc.error("unexpected character");
+				if (pc.tryParse(")"))
+				{
+					break;
+				}
+				else
+				{
+					pc.error("unexpected character");
+				}
 			}
 		}
 	}
 
-	pc.skipWhitespace();
 	if (pc.tryParse("->"))
 	{
-		pc.skipWhitespace();
 		fd.retType = pc.readIdentifier();
 	}
 
 	functions.insert({funcName, {std::move(argTypes), fd.retType}});
 
-	pc.skipWhitespace();
 	if (!pc.tryParse("{")) pc.error("expected '{'");
 
 	std::stringstream body;
@@ -870,10 +851,8 @@ void Parser::generateExtern(std::stringstream& op)
 	std::vector<std::string> argTypes;
 	std::string retType;
 
-	pc.skipWhitespace();
 	if (!pc.tryParse("(")) pc.error("expected '('");
 	
-	pc.skipWhitespace();
 	if (!pc.tryParse(")"))
 	{
 		while (true)
@@ -881,34 +860,27 @@ void Parser::generateExtern(std::stringstream& op)
 			std::string varName = pc.readIdentifier();
 			if (functions.count(varName)) pc.error("variable name is already a function");
 			
-			pc.skipWhitespace();
 			if (!pc.tryParse(":")) pc.error("expected ':'");
 		
-			pc.skipWhitespace();
 			std::string typeName = pc.readIdentifier();
 			argTypes.push_back(typeName);
 			
-			pc.skipWhitespace();
-
-			if (pc.tryParse(","))
+			if (!pc.tryParse(","))
 			{
-				pc.skipWhitespace();
-			}
-			else if (pc.tryParse(")"))
-			{
-				break;
-			}
-			else
-			{
-				pc.error("unexpected character");
+				if (pc.tryParse(")"))
+				{
+					break;
+				}
+				else
+				{
+					pc.error("unexpected character");
+				}
 			}
 		}
 	}
 
-	pc.skipWhitespace();
 	if (pc.tryParse("->"))
 	{
-		pc.skipWhitespace();
 		retType = pc.readIdentifier();
 	}
 
@@ -1020,16 +992,13 @@ Parser::Parser(const std::string& prog, std::stringstream& op)
 
 	while (true)
 	{
-		pc.skipWhitespace();
 		if (*pc == '\0') break;
 		if (pc.tryParseWord("func"))
 		{
-			pc.skipWhitespace();
 			generateFunction(op);
 		}
 		else if (pc.tryParseWord("extern"))
 		{
-			pc.skipWhitespace();
 			generateExtern(op);
 		}
 		else
