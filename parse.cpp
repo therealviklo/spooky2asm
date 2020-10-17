@@ -874,6 +874,7 @@ void Parser::generateExtern(std::stringstream& op)
 {
 	std::string funcName = pc.readIdentifier();
 	std::vector<std::string> argTypes;
+	std::string retType;
 
 	pc.skipWhitespace();
 	if (!pc.tryParse("(")) pc.error("expected '('");
@@ -910,6 +911,13 @@ void Parser::generateExtern(std::stringstream& op)
 		}
 	}
 
+	pc.skipWhitespace();
+	if (pc.tryParse("->"))
+	{
+		pc.skipWhitespace();
+		retType == pc.readIdentifier();
+	}
+
 	auto checkTypes = [&](std::vector<std::string> typeKey) -> bool {
 		if (argTypes.size() != typeKey.size()) return false;
 		for (size_t i = 0; i < typeKey.size(); i++)
@@ -922,6 +930,7 @@ void Parser::generateExtern(std::stringstream& op)
 	if (funcName == "print")
 	{
 		if (!checkTypes({"Int"})) pc.error("invalid extern arguments");
+		if (!retType.empty()) pc.error("invalid extern return type");
 		op <<	"_print:\n"
 				"\tpush rbp\n"
 				"\tmov rbp, rsp\n"
@@ -941,6 +950,7 @@ void Parser::generateExtern(std::stringstream& op)
 	else if (funcName == "printInt")
 	{
 		if (!checkTypes({"Int"})) pc.error("invalid extern arguments");
+		if (!retType.empty()) pc.error("invalid extern return type");
 		op <<	"_printInt:\n"
 				"\tpush rbp\n"
 				"\tmov rbp, rsp\n"
