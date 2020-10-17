@@ -40,6 +40,17 @@ void ParseCursor::skipTo(const char* pos)
 	while (cur < pos) move();
 }
 
+void ParseCursor::skipParen()
+{
+	size_t paramLevel = 0;
+	while (paramLevel || !tryParse(")"))
+	{
+		if (*cur == '(') paramLevel++;
+		else if (*cur == ')') paramLevel--;
+		move();
+	}
+}
+
 void ParseCursor::move()
 {
 	if (*cur == '\0') throw EndOfFileException("unexpected end of file");
@@ -241,134 +252,154 @@ LocalScope::~LocalScope()
 	scope.removeScope();
 }
 
-std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, FunctionData& fd)
+struct PrecedenceReturn {
+	ExprOp op;
+	int prec;
+};
+PrecedenceReturn precedence(ParseCursor& c)
 {
-	auto precedence = [](ParseCursor& c) -> int {
-		if (c.tryParse("==")) return 4; // Den här är lägre än = men måste kollas innan
+	if (c.tryParse("==")) return {EO_EQ, 4}; // Den här är lägre än = men måste kollas innan
 
-		if (c.tryParse("=")) return 5;
+	if (c.tryParse("=")) return {EO_ASSIGN, 5};
 
-		if (c.tryParse(">=")) return 3;
-		if (c.tryParse(">")) return 3;
-		if (c.tryParse("<=")) return 3;
-		if (c.tryParse("<")) return 3;
+	if (c.tryParse(">=")) return {EO_GE, 3};
+	if (c.tryParse(">")) return {EO_GT, 3};
+	if (c.tryParse("<=")) return {EO_LE, 3};
+	if (c.tryParse("<")) return {EO_LT, 3};
 
-		if (c.tryParse("+")) return 2;
-		if (c.tryParse("-")) return 2;
+	if (c.tryParse("+")) return {EO_ADD, 2};
+	if (c.tryParse("-")) return {EO_SUB, 2};
 
-		if (c.tryParse("%")) return 1;
-		if (c.tryParse("*")) return 1;
-		if (c.tryParse("/")) return 1;
+	if (c.tryParse("%")) return {EO_MOD, 1};
+	if (c.tryParse("*")) return {EO_MUL, 1};
+	if (c.tryParse("/")) return {EO_DIV, 1};
 
-		return 0;
-	};
+	return {EO_NOOP, 0};
+}
 
-	ParseCursor splitter = pc;
-	int paramLevel = 0;
-	const char* currOp = nullptr;
-	const char* currOpEnd = nullptr;
-	int currPrecedence = 0;
-	while (!splitter.atEnd())
-	{
-		if (*splitter == '(') paramLevel++;
-		else if (*splitter == ')') paramLevel--;
-		if (!paramLevel)
+std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, FunctionData& fd)
+{
+	struct Splitter {
+		ExprOp op;
+		int currPrecedence;
+		ParseCursor& pc;
+		ParseCursor first;
+		ParseCursor second;
+
+		void skipOperand()
 		{
-			const char* const opBegin = splitter;
-			const int prec = precedence(splitter);
-			if (prec > currPrecedence)
+			pc.skipWhitespace();
+			if (pc.tryParse("("))
 			{
-				currPrecedence = prec;
-				currOp = opBegin;
-				currOpEnd = splitter;
+				pc.skipParen();
 			}
-			if (prec == 0) splitter.move();
+			else if (validNameChar(*pc))
+			{
+				do
+				{
+					pc.move();
+				} while (validNameChar(*pc));
+			}
+			else
+			{
+				pc.error("unexpected character");
+			}
 		}
-		else
+
+		// Return: vid slutet eller ej
+		bool parseOp()
 		{
-			splitter.move();
+			pc.skipWhitespace();
+			if (pc.atEnd()) return true;
+			ParseCursor opStart = pc;
+			auto precRet = precedence(pc);
+			if (precRet.prec > currPrecedence)
+			{
+				first.setEnd(opStart);
+				second = pc;
+				op = precRet.op;
+			}
+			else if (precRet.prec == 0) return true;
+			return false;
 		}
-	}
 
-	if (currOp)
-	{
-		if (peekcmp(currOp, "=="))
+		Splitter(ParseCursor& pc)
+			: op(EO_NOOP),
+			  currPrecedence(0),
+			  pc(pc),
+			  first(pc),
+			  second(pc)
 		{
-			ParseCursor firstPc = pc;
-			firstPc.setEnd(currOp);
-			if (evaluateExpression(firstPc, op, fd).empty())
-				pc.error("expression does not return value");
+			pc.skipWhitespace();
+			if (*pc == '+' || *pc == '-')
+			{
+				parseOp();
+			}
+			do
+			{
+				skipOperand();
+			} while (!parseOp());
+		}
+	} splitter(pc);
 
-			std::string tmp = fd.localStack.getQword();
-			op << "\tmov " << tmp << ", rax\n";
+		switch (splitter.op)
+		{
+			case EO_EQ:
+			{
+				if (evaluateExpression(splitter.first, op, fd).empty())
+					pc.error("expression does not return value");
 
-			ParseCursor secondPc = pc;
-			secondPc.skipTo(currOpEnd);
-			secondPc.setEnd(pc.getEnd());
-			if (evaluateExpression(secondPc, op, fd).empty())
-				pc.error("expression does not return value");
+				std::string tmp = fd.localStack.getQword();
+				op << "\tmov " << tmp << ", rax\n";
 
-			op <<	"\tmov rcx, rax\n"
-					"\tmov rax, " << tmp << "\n"
-					"\tsub rcx, rax\n"
-					"\txor rax, rax\n"
-					"\tcmp rcx, 0\n"
-					"\tsete al\n";
+				if (evaluateExpression(splitter.second, op, fd).empty())
+					pc.error("expression does not return value");
 
+				op <<	"\tmov rcx, rax\n"
+						"\tmov rax, " << tmp << "\n"
+						"\tsub rcx, rax\n"
+						"\txor rax, rax\n"
+						"\tcmp rcx, 0\n"
+						"\tsete al\n";
+			}
 			return "Boolean";
-		}
-		else if (peekcmp(currOp, ">="))
-		{
-			ParseCursor firstPc = pc;
-			firstPc.setEnd(currOp);
-			if (evaluateExpression(firstPc, op, fd).empty())
-				pc.error("expression does not return value");
+			case EO_GE:
+			{
+				if (evaluateExpression(splitter.first, op, fd).empty())
+					pc.error("expression does not return value");
 
-			std::string tmp = fd.localStack.getQword();
-			op << "\tmov " << tmp << ", rax\n";
+				std::string tmp = fd.localStack.getQword();
+				op << "\tmov " << tmp << ", rax\n";
 
-			ParseCursor secondPc = pc;
-			secondPc.skipTo(currOpEnd);
-			secondPc.setEnd(pc.getEnd());
-			if (evaluateExpression(secondPc, op, fd).empty())
-				pc.error("expression does not return value");
+				if (evaluateExpression(splitter.second, op, fd).empty())
+					pc.error("expression does not return value");
 
-			op <<	"\tmov rcx, " << tmp << "\n"
-					"\tsub rcx, rax\n"
-					"\txor rax, rax\n"
-					"\tcmp rcx, 0\n"
-					"\tsetge al\n";
-
+				op <<	"\tmov rcx, " << tmp << "\n"
+						"\tsub rcx, rax\n"
+						"\txor rax, rax\n"
+						"\tcmp rcx, 0\n"
+						"\tsetge al\n";
+			}
 			return "Boolean";
-		}
-		else if (peekcmp(currOp, "<="))
-		{
-			ParseCursor firstPc = pc;
-			firstPc.setEnd(currOp);
-			if (evaluateExpression(firstPc, op, fd).empty())
-				pc.error("expression does not return value");
+			case EO_LE:
+			{
+				if (evaluateExpression(splitter.first, op, fd).empty())
+					pc.error("expression does not return value");
 
-			std::string tmp = fd.localStack.getQword();
-			op << "\tmov " << tmp << ", rax\n";
+				std::string tmp = fd.localStack.getQword();
+				op << "\tmov " << tmp << ", rax\n";
 
-			ParseCursor secondPc = pc;
-			secondPc.skipTo(currOpEnd);
-			secondPc.setEnd(pc.getEnd());
-			if (evaluateExpression(secondPc, op, fd).empty())
-				pc.error("expression does not return value");
+				if (evaluateExpression(splitter.second, op, fd).empty())
+					pc.error("expression does not return value");
 
-			op <<	"\tmov rcx, " << tmp << "\n"
-					"\tsub rcx, rax\n"
-					"\txor rax, rax\n"
-					"\tcmp rcx, 0\n"
-					"\tsetle al\n";
-
+				op <<	"\tmov rcx, " << tmp << "\n"
+						"\tsub rcx, rax\n"
+						"\txor rax, rax\n"
+						"\tcmp rcx, 0\n"
+						"\tsetle al\n";
+			}
 			return "Boolean";
-		}
-
-		switch (*currOp)
-		{
-			case '=':
+			case EO_ASSIGN:
 			{
 				std::stringstream nameSS;
 				pc.skipWhitespace();
@@ -404,20 +435,15 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Fu
 				return scope.get(name).type;
 			}
 			break; // Borde inte komma hit då det är en return ovan.
-			case '>':
+			case EO_GT:
 			{
-				ParseCursor firstPc = pc;
-				firstPc.setEnd(currOp);
-				if (evaluateExpression(firstPc, op, fd).empty())
+				if (evaluateExpression(splitter.first, op, fd).empty())
 					pc.error("expression does not return value");
 
 				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc = pc;
-				secondPc.skipTo(currOpEnd);
-				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, fd).empty())
+				if (evaluateExpression(splitter.second, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, " << tmp << "\n"
@@ -427,20 +453,15 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Fu
 						"\tsetg al\n";
 			}
 			return "Boolean";
-			case '<':
+			case EO_LT:
 			{
-				ParseCursor firstPc = pc;
-				firstPc.setEnd(currOp);
-				if (evaluateExpression(firstPc, op, fd).empty())
+				if (evaluateExpression(splitter.first, op, fd).empty())
 					pc.error("expression does not return value");
 
 				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc = pc;
-				secondPc.skipTo(currOpEnd);
-				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, fd).empty())
+				if (evaluateExpression(splitter.second, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, " << tmp << "\n"
@@ -450,28 +471,22 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Fu
 						"\tsetl al\n";
 			}
 			return "Boolean";
-			case '+':
+			case EO_ADD:
 			{
-				ParseCursor firstPc = pc;
-				firstPc.skipWhitespace();
-				if (firstPc.tryParse("+"))
+				if (*splitter.first == '+')
 				{
 					op << "\txor rax, rax\n";
 				}
 				else
 				{
-					firstPc.setEnd(currOp);
-					if (evaluateExpression(firstPc, op, fd).empty())
+					if (evaluateExpression(splitter.first, op, fd).empty())
 						pc.error("expression does not return value");
 				}
 
 				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc = pc;
-				secondPc.skipTo(currOpEnd);
-				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, fd).empty())
+				if (evaluateExpression(splitter.second, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, rax\n"
@@ -479,28 +494,22 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Fu
 						"\tadd rax, rcx\n";
 			}
 			return "Int";
-			case '-':
+			case EO_SUB:
 			{
-				ParseCursor firstPc = pc;
-				firstPc.skipWhitespace();
-				if (firstPc.tryParse("-"))
+				if (*splitter.first == '-')
 				{
 					op << "\txor rax, rax\n";
 				}
 				else
 				{
-					firstPc.setEnd(currOp);
-					if (evaluateExpression(firstPc, op, fd).empty())
+					if (evaluateExpression(splitter.first, op, fd).empty())
 						pc.error("expression does not return value");
 				}
 
 				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc = pc;
-				secondPc.skipTo(currOpEnd);
-				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, fd).empty())
+				if (evaluateExpression(splitter.second, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, rax\n"
@@ -508,20 +517,15 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Fu
 						"\tsub rax, rcx\n";
 			}
 			return "Int";
-			case '%':
+			case EO_MOD:
 			{
-				ParseCursor firstPc = pc;
-				firstPc.setEnd(currOp);
-				if (evaluateExpression(firstPc, op, fd).empty())
+				if (evaluateExpression(splitter.first, op, fd).empty())
 					pc.error("expression does not return value");
 
 				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc = pc;
-				secondPc.skipTo(currOpEnd);
-				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, fd).empty())
+				if (evaluateExpression(splitter.second, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, rax\n"
@@ -531,20 +535,15 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Fu
 						"\tmov rax, rdx\n";
 			}
 			return "Int";
-			case '*':
+			case EO_MUL:
 			{
-				ParseCursor firstPc = pc;
-				firstPc.setEnd(currOp);
-				if (evaluateExpression(firstPc, op, fd).empty())
+				if (evaluateExpression(splitter.first, op, fd).empty())
 					pc.error("expression does not return value");
 
 				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc = pc;
-				secondPc.skipTo(currOpEnd);
-				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, fd).empty())
+				if (evaluateExpression(splitter.second, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, rax\n"
@@ -552,20 +551,15 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Fu
 						"\timul rax, rcx\n";
 			}
 			return "Int";
-			case '/':
+			case EO_DIV:
 			{
-				ParseCursor firstPc = pc;
-				firstPc.setEnd(currOp);
-				if (evaluateExpression(firstPc, op, fd).empty())
+				if (evaluateExpression(splitter.first, op, fd).empty())
 					pc.error("expression does not return value");
 
 				std::string tmp = fd.localStack.getQword();
 				op << "\tmov " << tmp << ", rax\n";
 
-				ParseCursor secondPc = pc;
-				secondPc.skipTo(currOpEnd);
-				secondPc.setEnd(pc.getEnd());
-				if (evaluateExpression(secondPc, op, fd).empty())
+				if (evaluateExpression(splitter.second, op, fd).empty())
 					pc.error("expression does not return value");
 
 				op <<	"\tmov rcx, rax\n"
@@ -574,108 +568,108 @@ std::string Parser::evaluateExpression(ParseCursor pc, std::stringstream& op, Fu
 						"\tidiv rcx\n";
 			}
 			return "Int";
-		}
-	}
-	else
-	{
-		pc.skipWhitespace();
-		if (isdigit(*pc))
-		{
-			op <<	"\tmov rax, " << std::strtoll(pc, nullptr, 0) << "\n";
-
-			return "Int";
-		}
-		else if (*pc == '(')
-		{
-			ParseCursor paramPc = pc;
-			paramPc.move();
-			int closeParamLevel = 0;
-			ParseCursor closeParamPc = paramPc;
-			while (!closeParamLevel && *closeParamPc != ')')
+			case EO_NOOP:
 			{
-				if (*closeParamPc == '(') closeParamLevel++;
-				else if (*closeParamPc == ')') closeParamLevel--;
-				closeParamPc.move();
-			}
-			paramPc.setEnd(closeParamPc);
-			return evaluateExpression(paramPc, op, fd);
-		}
-		else
-		{
-			const std::string id = pc.readIdentifier();
-
-			if (scope.has(id))
-			{
-				const std::string loc = scope.get(id).location;
-				pc.skipWhitespace();
-				if (!pc.atEnd()) pc.error("invalid syntax");
-				op << "\tmov rax, " << loc << "\n";
-
-				return scope.get(id).type;
-			}
-			else if (functions.count(id)) // Kör en funktion
-			{
-				// Hämta namnet som ska användas i assemblyn.
-				const std::string funcLabel = getFuncLabel(id);
-				
-				// Skippa till och över parantesen.
-				pc.skipWhitespace();
-				if (!pc.tryParse("(")) pc.error("expected '('");
-
-				auto& func = functions.at(id);
-
-				// Gör utrymme för argumenten.
-				op << "\tsub rsp, " << (8 * func.argTypes.size()) << "\n";
-
-				// Läs in och evaluera uttrycken och flytta dem till dit de ska.
-				size_t currParamOffset = 0;
-				pc.skipWhitespace();
-				while (!pc.tryParse(")"))
+				splitter.first.skipWhitespace();
+				if (isdigit(*splitter.first))
 				{
-					// Skapa ParseCursorn för uttrycket.
-					ParseCursor argCur = pc;
-					// Flytta pc till kommatecknet eller parentesen. Ignorera allt som är i parenteser.
-					int argParamLevel = 0;
-					while (argParamLevel || (*pc != ',' && *pc != ')'))
-					{
-						if (*pc == '(') argParamLevel++;
-						else if (*pc == ')') argParamLevel--;
-						pc.move();
-					}
-					// Sätt kommatecknet eller parentesen som slutet på argCur.
-					argCur.setEnd(pc);
-					// Evaluera.
-					if (evaluateExpression(argCur, op, fd).empty())
-						pc.error("expression does not return value");
-					// Flytta till stacken.
-					op << "\tmov qword [rsp + " << currParamOffset << "], rax\n";
+					op <<	"\tmov rax, " << std::strtoll(splitter.first, nullptr, 0) << "\n";
 
-					// Nästa
-					currParamOffset += 8;
-					if (pc.tryParse(","))
+					return "Int";
+				}
+				else if (*splitter.first == '(')
+				{
+					ParseCursor paramPc = splitter.first;
+					paramPc.move();
+					int closeParamLevel = 0;
+					ParseCursor closeParamPc = paramPc;
+					while (!closeParamLevel && *closeParamPc != ')')
 					{
-						pc.skipWhitespace();
-						if (*pc == ')') pc.error("expected expression");
+						if (*closeParamPc == '(') closeParamLevel++;
+						else if (*closeParamPc == ')') closeParamLevel--;
+						closeParamPc.move();
+					}
+					paramPc.setEnd(closeParamPc);
+					return evaluateExpression(paramPc, op, fd);
+				}
+				else
+				{
+					const std::string id = splitter.first.readIdentifier();
+
+					if (scope.has(id))
+					{
+						const std::string loc = scope.get(id).location;
+						splitter.first.skipWhitespace();
+						if (!splitter.first.atEnd()) splitter.first.error("invalid syntax");
+						op << "\tmov rax, " << loc << "\n";
+
+						return scope.get(id).type;
+					}
+					else if (functions.count(id)) // Kör en funktion
+					{
+						// Hämta namnet som ska användas i assemblyn.
+						const std::string funcLabel = getFuncLabel(id);
+						
+						// Skippa till och över parantesen.
+						splitter.first.skipWhitespace();
+						if (!splitter.first.tryParse("(")) splitter.first.error("expected '('");
+
+						auto& func = functions.at(id);
+
+						// Gör utrymme för argumenten.
+						op << "\tsub rsp, " << (8 * func.argTypes.size()) << "\n";
+
+						// Läs in och evaluera uttrycken och flytta dem till dit de ska.
+						size_t currParamOffset = 0;
+						splitter.first.skipWhitespace();
+						while (!splitter.first.tryParse(")"))
+						{
+							// Skapa ParseCursorn för uttrycket.
+							ParseCursor argCur = splitter.first;
+							// Flytta splitter.first till kommatecknet eller parentesen. Ignorera allt som är i parenteser.
+							int argParamLevel = 0;
+							while (argParamLevel || (*splitter.first != ',' && *splitter.first != ')'))
+							{
+								if (*splitter.first == '(') argParamLevel++;
+								else if (*splitter.first == ')') argParamLevel--;
+								splitter.first.move();
+							}
+							// Sätt kommatecknet eller parentesen som slutet på argCur.
+							argCur.setEnd(splitter.first);
+							// Evaluera.
+							if (evaluateExpression(argCur, op, fd).empty())
+								splitter.first.error("expression does not return value");
+							// Flytta till stacken.
+							op << "\tmov qword [rsp + " << currParamOffset << "], rax\n";
+
+							// Nästa
+							currParamOffset += 8;
+							if (splitter.first.tryParse(","))
+							{
+								splitter.first.skipWhitespace();
+								if (*splitter.first == ')') splitter.first.error("expected expression");
+							}
+						}
+
+						if (currParamOffset != 8 * func.argTypes.size())
+						{
+							splitter.first.error("wrong number of arguments");
+						}
+
+						// Kör och rensa upp.
+						op <<	"\tcall " << funcLabel << "\n"
+								"\tadd rsp, " << (8 * func.argTypes.size()) << "\n";
+
+						return func.retType;
+					}
+					else
+					{
+						splitter.first.error("unknown identifier");
 					}
 				}
-
-				if (currParamOffset != 8 * func.argTypes.size())
-				{
-					pc.error("wrong number of arguments");
-				}
-
-				// Kör och rensa upp.
-				op <<	"\tcall " << funcLabel << "\n"
-						"\tadd rsp, " << (8 * func.argTypes.size()) << "\n";
-
-				return func.retType;
 			}
-			else
-			{
-				pc.error("unknown identifier");
-			}
+			break;
 		}
-	}
 	return "";
 }
 
@@ -915,7 +909,7 @@ void Parser::generateExtern(std::stringstream& op)
 	if (pc.tryParse("->"))
 	{
 		pc.skipWhitespace();
-		retType == pc.readIdentifier();
+		retType = pc.readIdentifier();
 	}
 
 	auto checkTypes = [&](std::vector<std::string> typeKey) -> bool {

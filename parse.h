@@ -24,6 +24,22 @@ public:
 	InvalidSyntaxException(const char* msg, size_t x, size_t y) : std::runtime_error(msg), x(x), y(y) {}
 };
 
+enum ExprOp
+{
+	EO_NOOP,
+	EO_EQ,  	// ==
+	EO_ASSIGN,	// =
+	EO_GE,  	// >=
+	EO_GT,  	// >
+	EO_LE,  	// <=
+	EO_LT,  	// <
+	EO_ADD, 	// +
+	EO_SUB, 	// -
+	EO_MOD, 	// %
+	EO_MUL, 	// *
+	EO_DIV  	// /
+};
+
 class ParseCursor
 {
 private:
@@ -39,6 +55,8 @@ public:
 	constexpr bool atEnd() const noexcept { return cur >= end; }
 
 	void skipTo(const char* pos);
+
+	void skipParen();
 
 	void move();
 	void move(size_t num);
@@ -128,7 +146,7 @@ private:
 	} labelManager;
 
 	// Return: typen
-	std::string evaluateExpression(ParseCursor pc, std::stringstream& op, FunctionData& fd);
+	std::string evaluateExpression(ParseCursor& pc, std::stringstream& op, FunctionData& fd);
 	void generateStatement(std::stringstream& op, FunctionData& fd);
 	void generateBlock(std::stringstream& op, FunctionData& fd);
 	void generateFunction(std::stringstream& op);
