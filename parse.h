@@ -47,20 +47,18 @@ private:
 	const char* end;
 	size_t x;
 	size_t y;
+
+	void skipWhitespace();
 public:
 	ParseCursor(const char* str);
 
-	void setEnd(const char* end) noexcept { this->end = end; }
-	constexpr const char* getEnd() const noexcept { return end; }
+	void setEnd(const ParseCursor& end) noexcept { this->end = end.end; }
 	constexpr bool atEnd() const noexcept { return cur >= end; }
-
-	void skipTo(const char* pos);
 
 	void skipParen();
 
 	void move();
 	void move(size_t num);
-	void skipWhitespace();
 
 	bool tryParse(const char* cmpStr);
 	bool tryParseWord(const char* cmpStr);
@@ -68,7 +66,8 @@ public:
 
 	inline void error(const char* msg);
 
-	constexpr operator const char*() const noexcept {return cur;}
+	char operator*();
+	const char* str();
 };
 
 class LocalStack
