@@ -1,11 +1,11 @@
-﻿extern printInt ( i : Int )
+﻿extern printInt(i: Int)
 
-func add ( x : Int ) -> Int
+func add(x: Int) -> Int
 {
-	return 10+3;
+	return -x * 3;
 }
 
-func main ( )
+func main()
 {
-	printInt ( add ( 10 ) ) ;
+	printInt(add(10));
 }
