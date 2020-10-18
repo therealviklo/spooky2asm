@@ -56,6 +56,7 @@ public:
 	constexpr bool atEnd() const noexcept { return cur >= end; }
 
 	void skipParen();
+	void skipNameOrNumber();
 
 	void move();
 	void move(size_t num);
@@ -143,13 +144,18 @@ private:
 			size_t getLoopNum() noexcept { return loopNum++; }
 			size_t getIfNum() noexcept { return ifNum++; }
 	} labelManager;
+	std::stringstream globalsFunc;
+	FunctionData globalsFuncData;
+	std::stringstream bssSection;
 
 	// Return: typen
 	std::string evaluateExpression(ParseCursor& pc, std::stringstream& op, FunctionData& fd);
 	void generateStatement(std::stringstream& op, FunctionData& fd);
 	void generateBlock(std::stringstream& op, FunctionData& fd);
+
 	void generateFunction(std::stringstream& op);
 	void generateExtern(std::stringstream& op);
+	void addGlobal();
 public:
 	Parser(const std::string& prog, std::stringstream& op);
 };
