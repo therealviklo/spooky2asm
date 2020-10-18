@@ -85,7 +85,7 @@ main:
 	sub rsp, 0
 	sub rsp, 8
 	sub rsp, 8
-	mov rax, 10
+	mov rax, 20
 	mov qword [rsp + 0], rax
 	call _add
 	add rsp, 8
