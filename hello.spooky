@@ -2,7 +2,7 @@
 
 func add ( x : Int ) -> Int
 {
-	return ( - 10 ) * 3 ;
+	return 10+3;
 }
 
 func main ( )

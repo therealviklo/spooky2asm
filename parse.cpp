@@ -24,19 +24,33 @@ bool peekcmp(const char* str, const char* cmp) noexcept
 
 void ParseCursor::skipWhitespace()
 {
-	while (isspace(*cur))
+	auto atComment = [&]() -> bool {
+		return *cur == '/' && *(cur + 1) == '/';
+	};
+
+	while (true)
 	{
-		if (cur >= end) break;
-		if (*cur == '\n')
+		while (isspace(*cur))
 		{
-			x = 1;
-			y++;
+			if (cur >= end) break;
+			if (*cur == '\n')
+			{
+				x = 1;
+				y++;
+			}
+			else
+			{
+				x++;
+			}
+			cur++;
 		}
-		else
+
+		if (atComment())
 		{
-			x++;
+			while (*cur != '\n') move();
+			continue;
 		}
-		cur++;
+		break;
 	}
 }
 
