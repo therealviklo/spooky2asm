@@ -2,12 +2,13 @@
 
 func add(x: Int) -> Int
 {
-	return // Test
-	- //test 2
-	x * 3;
+	return x + 1;
 }
+
+i: Int = add(3) + (add(8) / 2)
 
 func main()
 {
-	printInt(add(20));
+	printInt(i);
+	i;
 }

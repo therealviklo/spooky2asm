@@ -78,6 +78,27 @@ void ParseCursor::skipParen()
 	}
 }
 
+void ParseCursor::skipNameOrNumber()
+{
+	skipWhitespace();
+
+	if (!validNameChar(*cur)) error("name expected");
+	do
+	{
+		if (*cur == '\n')
+		{
+			x = 1;
+			y++;
+		}
+		else
+		{
+			x++;
+		}
+		cur++;
+	} while (validNameChar(*cur));
+	if (cur > end) error("unexpected end of sequence");
+}
+
 void ParseCursor::move()
 {
 	if (*cur == '\0') throw EndOfFileException("unexpected end of file");
@@ -321,10 +342,8 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 			}
 			else if (validNameChar(*pc))
 			{
-				do
-				{
-					pc.move();
-				} while (validNameChar(*pc));
+				pc.skipNameOrNumber();
+				if (pc.tryParse("(")) pc.skipParen();
 			}
 			else
 			{
@@ -595,20 +614,24 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 
 				return "Int";
 			}
-			else if (*splitter.first == '(')
+			// else if (*splitter.first == '(')
+			// {
+			// 	ParseCursor paramPc = splitter.first;
+			// 	paramPc.move();
+			// 	int closeParamLevel = 0;
+			// 	ParseCursor closeParamPc = paramPc;
+			// 	while (!closeParamLevel && *closeParamPc != ')')
+			// 	{
+			// 		if (*closeParamPc == '(') closeParamLevel++;
+			// 		else if (*closeParamPc == ')') closeParamLevel--;
+			// 		closeParamPc.move();
+			// 	}
+			// 	paramPc.setEnd(closeParamPc);
+			// 	return evaluateExpression(paramPc, op, fd);
+			// }
+			else if (splitter.first.tryParse("("))
 			{
-				ParseCursor paramPc = splitter.first;
-				paramPc.move();
-				int closeParamLevel = 0;
-				ParseCursor closeParamPc = paramPc;
-				while (!closeParamLevel && *closeParamPc != ')')
-				{
-					if (*closeParamPc == '(') closeParamLevel++;
-					else if (*closeParamPc == ')') closeParamLevel--;
-					closeParamPc.move();
-				}
-				paramPc.setEnd(closeParamPc);
-				return evaluateExpression(paramPc, op, fd);
+				return evaluateExpression(splitter.first, op, fd);
 			}
 			else
 			{
@@ -843,6 +866,9 @@ void Parser::generateFunction(std::stringstream& op)
 
 	op << getFuncLabel(funcName) << ":\n";
 	op << fd.localStack.getStackInit().str();
+
+	if (funcName == "main") op << "\tcall spookyInitGlobals\n";
+
 	op << body.str();
 	op <<	".ret:\n"
 			"\tmov rsp, rbp\n"
@@ -994,6 +1020,25 @@ void Parser::generateExtern(std::stringstream& op)
 	functions.insert({std::move(funcName), {std::move(argTypes), ""}});
 }
 
+void Parser::addGlobal()
+{
+	std::string varName = pc.readIdentifier();
+
+	if (functions.count(varName)) pc.error("function redefinition");
+	if (scope.has(varName)) pc.error("redefinition of variable");
+
+	if (!pc.tryParse(":")) pc.error("expected ':'");
+	
+	std::string typeName = pc.readIdentifier();
+	
+	if (!pc.tryParse("=")) pc.error("expected '='");
+	
+	evaluateExpression(pc, globalsFunc, globalsFuncData);
+	globalsFunc << "\tmov qword [qword g_" << varName << "], rax\n";
+	bssSection << "\tg_" << varName << ": resq 1\n";
+	scope.add(varName, {typeName, "qword [qword g_" + varName + "]"});
+}
+
 Parser::Parser(const std::string& prog, std::stringstream& op)
 	: pc(prog.c_str())
 {
@@ -1002,6 +1047,10 @@ Parser::Parser(const std::string& prog, std::stringstream& op)
 			"\textern putchar\n"
 			"\n"
 			"section .text\n";
+
+	bssSection << "section .bss\n";
+
+	LocalScope globalVarScope(scope);
 
 	while (true)
 	{
@@ -1016,7 +1065,15 @@ Parser::Parser(const std::string& prog, std::stringstream& op)
 		}
 		else
 		{
-			pc.error("unexpected symbol");
+			addGlobal();
 		}
 	}
+
+	op << "spookyInitGlobals:\n";
+	op << globalsFuncData.localStack.getStackInit().str();
+	op << globalsFunc.str();
+	op <<	"\tmov rsp, rbp\n"
+			"\tpop rbp\n"
+			"\tret\n";
+	op << bssSection.str();
 }
