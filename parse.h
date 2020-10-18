@@ -52,7 +52,7 @@ private:
 public:
 	ParseCursor(const char* str);
 
-	void setEnd(const ParseCursor& end) noexcept { this->end = end.end; }
+	void setEnd(const ParseCursor& end) noexcept { this->end = end.cur; }
 	constexpr bool atEnd() const noexcept { return cur >= end; }
 
 	void skipParen();

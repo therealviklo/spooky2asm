@@ -366,324 +366,323 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 		}
 	} splitter(pc);
 
-		switch (splitter.op)
+	switch (splitter.op)
+	{
+		case EO_EQ:
 		{
-			case EO_EQ:
-			{
-				if (evaluateExpression(splitter.first, op, fd).empty())
-					pc.error("expression does not return value");
+			if (evaluateExpression(splitter.first, op, fd).empty())
+				pc.error("expression does not return value");
 
-				std::string tmp = fd.localStack.getQword();
-				op << "\tmov " << tmp << ", rax\n";
+			std::string tmp = fd.localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
 
-				if (evaluateExpression(splitter.second, op, fd).empty())
-					pc.error("expression does not return value");
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				pc.error("expression does not return value");
 
-				op <<	"\tmov rcx, rax\n"
-						"\tmov rax, " << tmp << "\n"
-						"\tsub rcx, rax\n"
-						"\txor rax, rax\n"
-						"\tcmp rcx, 0\n"
-						"\tsete al\n";
-			}
-			return "Boolean";
-			case EO_GE:
-			{
-				if (evaluateExpression(splitter.first, op, fd).empty())
-					pc.error("expression does not return value");
-
-				std::string tmp = fd.localStack.getQword();
-				op << "\tmov " << tmp << ", rax\n";
-
-				if (evaluateExpression(splitter.second, op, fd).empty())
-					pc.error("expression does not return value");
-
-				op <<	"\tmov rcx, " << tmp << "\n"
-						"\tsub rcx, rax\n"
-						"\txor rax, rax\n"
-						"\tcmp rcx, 0\n"
-						"\tsetge al\n";
-			}
-			return "Boolean";
-			case EO_LE:
-			{
-				if (evaluateExpression(splitter.first, op, fd).empty())
-					pc.error("expression does not return value");
-
-				std::string tmp = fd.localStack.getQword();
-				op << "\tmov " << tmp << ", rax\n";
-
-				if (evaluateExpression(splitter.second, op, fd).empty())
-					pc.error("expression does not return value");
-
-				op <<	"\tmov rcx, " << tmp << "\n"
-						"\tsub rcx, rax\n"
-						"\txor rax, rax\n"
-						"\tcmp rcx, 0\n"
-						"\tsetle al\n";
-			}
-			return "Boolean";
-			case EO_ASSIGN:
-			{
-				std::stringstream nameSS;
-				while (validNameChar(*pc))
-				{
-					nameSS << *pc;
-					pc.move();
-				}
-				const std::string name = nameSS.str();
-				if (scope.has(name))
-				{
-					if (!pc.tryParse("=")) pc.error("invalid syntax, expected '='");
-				}
-				else
-				{
-					if (functions.count(name)) pc.error("variable name is already a function");
-					if (!pc.tryParse(":")) pc.error("invalid syntax, expected ':'");
-					const std::string typeName = pc.readIdentifier();
-					scope.add(name, {typeName, fd.localStack.getQword()});
-					if (!pc.tryParse("=")) pc.error("invalid syntax, expected '=' (2)");
-				}
-
-				if (evaluateExpression(pc, op, fd).empty())
-					pc.error("expression does not return value");
-
-				const std::string loc = scope.get(name).location;
-				op << "\tmov " << loc << ", rax\n";
-
-				return scope.get(name).type;
-			}
-			break; // Borde inte komma hit då det är en return ovan.
-			case EO_GT:
-			{
-				if (evaluateExpression(splitter.first, op, fd).empty())
-					pc.error("expression does not return value");
-
-				std::string tmp = fd.localStack.getQword();
-				op << "\tmov " << tmp << ", rax\n";
-
-				if (evaluateExpression(splitter.second, op, fd).empty())
-					pc.error("expression does not return value");
-
-				op <<	"\tmov rcx, " << tmp << "\n"
-						"\tsub rcx, rax\n"
-						"\txor rax, rax\n"
-						"\tcmp rcx, 0\n"
-						"\tsetg al\n";
-			}
-			return "Boolean";
-			case EO_LT:
-			{
-				if (evaluateExpression(splitter.first, op, fd).empty())
-					pc.error("expression does not return value");
-
-				std::string tmp = fd.localStack.getQword();
-				op << "\tmov " << tmp << ", rax\n";
-
-				if (evaluateExpression(splitter.second, op, fd).empty())
-					pc.error("expression does not return value");
-
-				op <<	"\tmov rcx, " << tmp << "\n"
-						"\tsub rcx, rax\n"
-						"\txor rax, rax\n"
-						"\tcmp rcx, 0\n"
-						"\tsetl al\n";
-			}
-			return "Boolean";
-			case EO_ADD:
-			{
-				if (*splitter.first == '+')
-				{
-					op << "\txor rax, rax\n";
-				}
-				else
-				{
-					if (evaluateExpression(splitter.first, op, fd).empty())
-						pc.error("expression does not return value");
-				}
-
-				std::string tmp = fd.localStack.getQword();
-				op << "\tmov " << tmp << ", rax\n";
-
-				if (evaluateExpression(splitter.second, op, fd).empty())
-					pc.error("expression does not return value");
-
-				op <<	"\tmov rcx, rax\n"
-						"\tmov rax, " << tmp << "\n"
-						"\tadd rax, rcx\n";
-			}
-			return "Int";
-			case EO_SUB:
-			{
-				if (*splitter.first == '-')
-				{
-					op << "\txor rax, rax\n";
-				}
-				else
-				{
-					if (evaluateExpression(splitter.first, op, fd).empty())
-						pc.error("expression does not return value");
-				}
-
-				std::string tmp = fd.localStack.getQword();
-				op << "\tmov " << tmp << ", rax\n";
-
-				if (evaluateExpression(splitter.second, op, fd).empty())
-					pc.error("expression does not return value");
-
-				op <<	"\tmov rcx, rax\n"
-						"\tmov rax, " << tmp << "\n"
-						"\tsub rax, rcx\n";
-			}
-			return "Int";
-			case EO_MOD:
-			{
-				if (evaluateExpression(splitter.first, op, fd).empty())
-					pc.error("expression does not return value");
-
-				std::string tmp = fd.localStack.getQword();
-				op << "\tmov " << tmp << ", rax\n";
-
-				if (evaluateExpression(splitter.second, op, fd).empty())
-					pc.error("expression does not return value");
-
-				op <<	"\tmov rcx, rax\n"
-						"\tmov rax, " << tmp << "\n"
-						"\txor rdx, rdx\n"
-						"\tidiv rcx\n"
-						"\tmov rax, rdx\n";
-			}
-			return "Int";
-			case EO_MUL:
-			{
-				if (evaluateExpression(splitter.first, op, fd).empty())
-					pc.error("expression does not return value");
-
-				std::string tmp = fd.localStack.getQword();
-				op << "\tmov " << tmp << ", rax\n";
-
-				if (evaluateExpression(splitter.second, op, fd).empty())
-					pc.error("expression does not return value");
-
-				op <<	"\tmov rcx, rax\n"
-						"\tmov rax, " << tmp << "\n"
-						"\timul rax, rcx\n";
-			}
-			return "Int";
-			case EO_DIV:
-			{
-				if (evaluateExpression(splitter.first, op, fd).empty())
-					pc.error("expression does not return value");
-
-				std::string tmp = fd.localStack.getQword();
-				op << "\tmov " << tmp << ", rax\n";
-
-				if (evaluateExpression(splitter.second, op, fd).empty())
-					pc.error("expression does not return value");
-
-				op <<	"\tmov rcx, rax\n"
-						"\tmov rax, " << tmp << "\n"
-						"\txor rdx, rdx\n"
-						"\tidiv rcx\n";
-			}
-			return "Int";
-			case EO_NOOP:
-			{
-				if (isdigit(*splitter.first))
-				{
-					op <<	"\tmov rax, " << std::strtoll(splitter.first.str(), nullptr, 0) << "\n";
-
-					return "Int";
-				}
-				else if (*splitter.first == '(')
-				{
-					ParseCursor paramPc = splitter.first;
-					paramPc.move();
-					int closeParamLevel = 0;
-					ParseCursor closeParamPc = paramPc;
-					while (!closeParamLevel && *closeParamPc != ')')
-					{
-						if (*closeParamPc == '(') closeParamLevel++;
-						else if (*closeParamPc == ')') closeParamLevel--;
-						closeParamPc.move();
-					}
-					paramPc.setEnd(closeParamPc);
-					return evaluateExpression(paramPc, op, fd);
-				}
-				else
-				{
-					const std::string id = splitter.first.readIdentifier();
-
-					if (scope.has(id))
-					{
-						const std::string loc = scope.get(id).location;
-						if (!splitter.first.atEnd()) splitter.first.error("invalid syntax");
-						op << "\tmov rax, " << loc << "\n";
-
-						return scope.get(id).type;
-					}
-					else if (functions.count(id)) // Kör en funktion
-					{
-						// Hämta namnet som ska användas i assemblyn.
-						const std::string funcLabel = getFuncLabel(id);
-						
-						// Skippa till och över parantesen.
-						if (!splitter.first.tryParse("(")) splitter.first.error("expected '('");
-
-						auto& func = functions.at(id);
-
-						// Gör utrymme för argumenten.
-						op << "\tsub rsp, " << (8 * func.argTypes.size()) << "\n";
-
-						// Läs in och evaluera uttrycken och flytta dem till dit de ska.
-						size_t currParamOffset = 0;
-						while (!splitter.first.tryParse(")"))
-						{
-							// Skapa ParseCursorn för uttrycket.
-							ParseCursor argCur = splitter.first;
-							// Flytta splitter.first till kommatecknet eller parentesen. Ignorera allt som är i parenteser.
-							int argParamLevel = 0;
-							while (argParamLevel || (*splitter.first != ',' && *splitter.first != ')'))
-							{
-								if (*splitter.first == '(') argParamLevel++;
-								else if (*splitter.first == ')') argParamLevel--;
-								splitter.first.move();
-							}
-							// Sätt kommatecknet eller parentesen som slutet på argCur.
-							argCur.setEnd(splitter.first);
-							// Evaluera.
-							if (evaluateExpression(argCur, op, fd).empty())
-								splitter.first.error("expression does not return value");
-							// Flytta till stacken.
-							op << "\tmov qword [rsp + " << currParamOffset << "], rax\n";
-
-							// Nästa
-							currParamOffset += 8;
-							if (splitter.first.tryParse(","))
-							{
-								if (*splitter.first == ')') splitter.first.error("expected expression");
-							}
-						}
-
-						if (currParamOffset != 8 * func.argTypes.size())
-						{
-							splitter.first.error("wrong number of arguments");
-						}
-
-						// Kör och rensa upp.
-						op <<	"\tcall " << funcLabel << "\n"
-								"\tadd rsp, " << (8 * func.argTypes.size()) << "\n";
-
-						return func.retType;
-					}
-					else
-					{
-						splitter.first.error("unknown identifier");
-					}
-				}
-			}
-			break;
+			op <<	"\tmov rcx, rax\n"
+					"\tmov rax, " << tmp << "\n"
+					"\tsub rcx, rax\n"
+					"\txor rax, rax\n"
+					"\tcmp rcx, 0\n"
+					"\tsete al\n";
 		}
+		return "Boolean";
+		case EO_GE:
+		{
+			if (evaluateExpression(splitter.first, op, fd).empty())
+				pc.error("expression does not return value");
+
+			std::string tmp = fd.localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, " << tmp << "\n"
+					"\tsub rcx, rax\n"
+					"\txor rax, rax\n"
+					"\tcmp rcx, 0\n"
+					"\tsetge al\n";
+		}
+		return "Boolean";
+		case EO_LE:
+		{
+			if (evaluateExpression(splitter.first, op, fd).empty())
+				pc.error("expression does not return value");
+
+			std::string tmp = fd.localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, " << tmp << "\n"
+					"\tsub rcx, rax\n"
+					"\txor rax, rax\n"
+					"\tcmp rcx, 0\n"
+					"\tsetle al\n";
+		}
+		return "Boolean";
+		case EO_ASSIGN:
+		{
+			std::stringstream nameSS;
+			while (validNameChar(*pc))
+			{
+				nameSS << *pc;
+				pc.move();
+			}
+			const std::string name = nameSS.str();
+			if (scope.has(name))
+			{
+				if (!pc.tryParse("=")) pc.error("invalid syntax, expected '='");
+			}
+			else
+			{
+				if (functions.count(name)) pc.error("variable name is already a function");
+				if (!pc.tryParse(":")) pc.error("invalid syntax, expected ':'");
+				const std::string typeName = pc.readIdentifier();
+				scope.add(name, {typeName, fd.localStack.getQword()});
+				if (!pc.tryParse("=")) pc.error("invalid syntax, expected '=' (2)");
+			}
+
+			if (evaluateExpression(pc, op, fd).empty())
+				pc.error("expression does not return value");
+
+			const std::string loc = scope.get(name).location;
+			op << "\tmov " << loc << ", rax\n";
+
+			return scope.get(name).type;
+		}
+		break; // Borde inte komma hit då det är en return ovan.
+		case EO_GT:
+		{
+			if (evaluateExpression(splitter.first, op, fd).empty())
+				pc.error("expression does not return value");
+
+			std::string tmp = fd.localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, " << tmp << "\n"
+					"\tsub rcx, rax\n"
+					"\txor rax, rax\n"
+					"\tcmp rcx, 0\n"
+					"\tsetg al\n";
+		}
+		return "Boolean";
+		case EO_LT:
+		{
+			if (evaluateExpression(splitter.first, op, fd).empty())
+				pc.error("expression does not return value");
+
+			std::string tmp = fd.localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, " << tmp << "\n"
+					"\tsub rcx, rax\n"
+					"\txor rax, rax\n"
+					"\tcmp rcx, 0\n"
+					"\tsetl al\n";
+		}
+		return "Boolean";
+		case EO_ADD:
+		{
+			if (*splitter.first == '+')
+			{
+				op << "\txor rax, rax\n";
+			}
+			else
+			{
+				if (evaluateExpression(splitter.first, op, fd).empty())
+					pc.error("expression does not return value");
+			}
+
+			std::string tmp = fd.localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, rax\n"
+					"\tmov rax, " << tmp << "\n"
+					"\tadd rax, rcx\n";
+		}
+		return "Int";
+		case EO_SUB:
+		{
+			if (*splitter.first == '-')
+			{
+				op << "\txor rax, rax\n";
+			}
+			else
+			{
+				if (evaluateExpression(splitter.first, op, fd).empty())
+					pc.error("expression does not return value");
+			}
+
+			std::string tmp = fd.localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, rax\n"
+					"\tmov rax, " << tmp << "\n"
+					"\tsub rax, rcx\n";
+		}
+		return "Int";
+		case EO_MOD:
+		{
+			if (evaluateExpression(splitter.first, op, fd).empty())
+				pc.error("expression does not return value");
+
+			std::string tmp = fd.localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, rax\n"
+					"\tmov rax, " << tmp << "\n"
+					"\txor rdx, rdx\n"
+					"\tidiv rcx\n"
+					"\tmov rax, rdx\n";
+		}
+		return "Int";
+		case EO_MUL:
+		{
+			if (evaluateExpression(splitter.first, op, fd).empty())
+				pc.error("expression does not return value");
+
+			std::string tmp = fd.localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, rax\n"
+					"\tmov rax, " << tmp << "\n"
+					"\timul rax, rcx\n";
+		}
+		return "Int";
+		case EO_DIV:
+		{
+			if (evaluateExpression(splitter.first, op, fd).empty())
+				pc.error("expression does not return value");
+
+			std::string tmp = fd.localStack.getQword();
+			op << "\tmov " << tmp << ", rax\n";
+
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				pc.error("expression does not return value");
+
+			op <<	"\tmov rcx, rax\n"
+					"\tmov rax, " << tmp << "\n"
+					"\txor rdx, rdx\n"
+					"\tidiv rcx\n";
+		}
+		return "Int";
+		case EO_NOOP:
+		{
+			if (isdigit(*splitter.first))
+			{
+				op <<	"\tmov rax, " << std::strtoll(splitter.first.str(), nullptr, 0) << "\n";
+
+				return "Int";
+			}
+			else if (*splitter.first == '(')
+			{
+				ParseCursor paramPc = splitter.first;
+				paramPc.move();
+				int closeParamLevel = 0;
+				ParseCursor closeParamPc = paramPc;
+				while (!closeParamLevel && *closeParamPc != ')')
+				{
+					if (*closeParamPc == '(') closeParamLevel++;
+					else if (*closeParamPc == ')') closeParamLevel--;
+					closeParamPc.move();
+				}
+				paramPc.setEnd(closeParamPc);
+				return evaluateExpression(paramPc, op, fd);
+			}
+			else
+			{
+				const std::string id = splitter.first.readIdentifier();
+
+				if (scope.has(id))
+				{
+					const std::string loc = scope.get(id).location;
+					op << "\tmov rax, " << loc << "\n";
+
+					return scope.get(id).type;
+				}
+				else if (functions.count(id)) // Kör en funktion
+				{
+					// Hämta namnet som ska användas i assemblyn.
+					const std::string funcLabel = getFuncLabel(id);
+					
+					// Skippa till och över parantesen.
+					if (!splitter.first.tryParse("(")) splitter.first.error("expected '('");
+
+					auto& func = functions.at(id);
+
+					// Gör utrymme för argumenten.
+					op << "\tsub rsp, " << (8 * func.argTypes.size()) << "\n";
+
+					// Läs in och evaluera uttrycken och flytta dem till dit de ska.
+					size_t currParamOffset = 0;
+					while (!splitter.first.tryParse(")"))
+					{
+						// Skapa ParseCursorn för uttrycket.
+						ParseCursor argCur = splitter.first;
+						// Flytta splitter.first till kommatecknet eller parentesen. Ignorera allt som är i parenteser.
+						int argParamLevel = 0;
+						while (argParamLevel || (*splitter.first != ',' && *splitter.first != ')'))
+						{
+							if (*splitter.first == '(') argParamLevel++;
+							else if (*splitter.first == ')') argParamLevel--;
+							splitter.first.move();
+						}
+						// Sätt kommatecknet eller parentesen som slutet på argCur.
+						argCur.setEnd(splitter.first);
+						// Evaluera.
+						if (evaluateExpression(argCur, op, fd).empty())
+							splitter.first.error("expression does not return value");
+						// Flytta till stacken.
+						op << "\tmov qword [rsp + " << currParamOffset << "], rax\n";
+
+						// Nästa
+						currParamOffset += 8;
+						if (splitter.first.tryParse(","))
+						{
+							if (*splitter.first == ')') splitter.first.error("expected expression");
+						}
+					}
+
+					if (currParamOffset != 8 * func.argTypes.size())
+					{
+						splitter.first.error("wrong number of arguments");
+					}
+
+					// Kör och rensa upp.
+					op <<	"\tcall " << funcLabel << "\n"
+							"\tadd rsp, " << (8 * func.argTypes.size()) << "\n";
+
+					return func.retType;
+				}
+				else
+				{
+					splitter.first.error("unknown identifier");
+				}
+			}
+		}
+		break;
+	}
 	return "";
 }
 
