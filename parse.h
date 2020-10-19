@@ -4,25 +4,12 @@
 #include <stdexcept>
 #include <cctype>
 #include <unordered_map>
-
-bool validNameChar(char c) noexcept;
-std::string getFuncLabel(const std::string& func);
-bool peekcmp(const char* str, const char* cmp) noexcept;
-
-class EndOfFileException : public std::runtime_error
-{
-public:
-	EndOfFileException(const char* msg) : std::runtime_error(msg) {}
-};
-
-class InvalidSyntaxException : public std::runtime_error
-{
-public:
-	size_t x;
-	size_t y;
-
-	InvalidSyntaxException(const char* msg, size_t x, size_t y) : std::runtime_error(msg), x(x), y(y) {}
-};
+#include "parseUtils.h"
+#include "parseExceptions.h"
+#include "parseCursor.h"
+#include "localStack.h"
+#include "func.h"
+#include "scope.h"
 
 enum ExprOp
 {
@@ -38,94 +25,6 @@ enum ExprOp
 	EO_MOD, 	// %
 	EO_MUL, 	// *
 	EO_DIV  	// /
-};
-
-class ParseCursor
-{
-private:
-	const char* cur;
-	const char* end;
-	size_t x;
-	size_t y;
-
-	void skipWhitespace();
-public:
-	ParseCursor(const char* str);
-
-	void setEnd(const ParseCursor& end) noexcept { this->end = end.cur; }
-	constexpr bool atEnd() const noexcept { return cur >= end; }
-
-	void skipParen();
-	void skipNameOrNumber();
-
-	void move();
-	void move(size_t num);
-
-	bool tryParse(const char* cmpStr);
-	bool tryParseWord(const char* cmpStr);
-	std::string readIdentifier();
-
-	inline void error(const char* msg);
-
-	char operator*();
-	const char* str();
-};
-
-class LocalStack
-{
-private:
-	size_t stackSize;
-public:
-	LocalStack() : stackSize(0) {}
-
-	std::string getQword();
-
-	std::stringstream getStackInit();
-};
-
-struct Variable
-{
-	std::string type;
-	std::string location;
-};
-
-class LocalScope;
-class Scope
-{
-private:
-	std::vector<std::unordered_map<std::string, Variable>> scopes;
-public:
-	bool has(std::string var) const;
-	Variable& get(std::string var);
-
-	void add(std::string varName, Variable var);
-
-	void addScope();
-	void removeScope() noexcept;
-};
-class LocalScope
-{
-private:
-	Scope& scope;
-public:
-	LocalScope(Scope& scope);
-	~LocalScope();
-
-	LocalScope(const LocalScope&) = delete;
-	LocalScope& operator=(const LocalScope&) = delete;
-};
-
-struct Function
-{
-	std::vector<std::string> argTypes;
-	std::string retType;
-};
-typedef std::unordered_map<std::string, Function> Functions;
-
-struct FunctionData
-{
-	LocalStack localStack;
-	std::string retType;
 };
 
 class Parser
