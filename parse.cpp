@@ -614,21 +614,6 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 
 				return "Int";
 			}
-			// else if (*splitter.first == '(')
-			// {
-			// 	ParseCursor paramPc = splitter.first;
-			// 	paramPc.move();
-			// 	int closeParamLevel = 0;
-			// 	ParseCursor closeParamPc = paramPc;
-			// 	while (!closeParamLevel && *closeParamPc != ')')
-			// 	{
-			// 		if (*closeParamPc == '(') closeParamLevel++;
-			// 		else if (*closeParamPc == ')') closeParamLevel--;
-			// 		closeParamPc.move();
-			// 	}
-			// 	paramPc.setEnd(closeParamPc);
-			// 	return evaluateExpression(paramPc, op, fd);
-			// }
 			else if (splitter.first.tryParse("("))
 			{
 				return evaluateExpression(splitter.first, op, fd);
