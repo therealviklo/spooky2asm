@@ -8,7 +8,7 @@ int main(int argc, char* argv[])
 	try
 	{
 		std::string input;
-		std::string output = "spooky.asm";
+		std::string output;
 		for (int i = 1; i < argc; i++)
 		{
 			if (argv[i][0] == '-')
@@ -38,6 +38,14 @@ int main(int argc, char* argv[])
 			{
 				input = argv[i];
 			}
+		}
+
+		if (input.empty()) throw std::runtime_error("no input file");
+		if (output.empty())
+		{
+			const size_t pos = input.find_last_of(".");
+			if (pos == std::string::npos) output = input + ".asm";
+			else output = input.substr(0, pos) + ".asm";
 		}
 
 		std::string spookyFileContents;
