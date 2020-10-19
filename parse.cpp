@@ -701,12 +701,9 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 		if (fd.retType.empty() && !pc.tryParse(";")) pc.error("expected ';'");
 		else
 		{
-			ParseCursor exprCur = pc;
-			while (*pc != ';') pc.move();
-			exprCur.setEnd(pc);
-			pc.move();
-			if (evaluateExpression(exprCur, op, fd).empty())
+			if (evaluateExpression(pc, op, fd).empty())
 				pc.error("expression does not return value");
+			if (!pc.tryParse(";")) pc.error("expected ';'");
 		}
 		op << "\tjmp .ret\n";
 	}
@@ -718,18 +715,9 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 			LocalScope localScope(scope);
 
 			if (!pc.tryParse("(")) pc.error("expected '('");
-			ParseCursor exprCur = pc;
-			size_t paramLevel = 0;
-			while (paramLevel || *pc != ')')
-			{
-				if (*pc == '(') paramLevel++;
-				else if (*pc == ')') paramLevel--;
-				pc.move();
-			}
-			exprCur.setEnd(pc);
-			pc.move();
-			if (evaluateExpression(exprCur, op, fd).empty())
+			if (evaluateExpression(pc, op, fd).empty())
 				pc.error("expression does not return value");
+			if (!pc.tryParse(")")) pc.error("expected ')'");
 
 			op <<	"\tcmp rax, 0\n"
 					"\tje .iff" << ifNum << "\n";
@@ -773,11 +761,8 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 	{
 		if (!pc.tryParse(";"))
 		{
-			ParseCursor exprCur = pc;
-			while (*pc != ';') pc.move();
-			exprCur.setEnd(pc);
-			pc.move();
-			evaluateExpression(exprCur, op, fd);
+			evaluateExpression(pc, op, fd);
+			if (!pc.tryParse(";")) pc.error("expected ';'");
 		}
 	}
 }
