@@ -58,18 +58,17 @@ _printInt:
 	pop rbp
 	ret
 
-_add:
+_print:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 8
-	mov rax, qword [rbp + 16]
-	mov qword [rbp - 8], rax
-	mov rax, 1
-	mov rcx, rax
-	mov rax, qword [rbp - 8]
-	add rax, rcx
-	jmp .ret
-.ret:
+	xor rdx, rdx
+	mov rax, rsp
+	mov rcx, 16
+	div rcx
+	sub rsp, rdx
+	sub rsp, 32
+	mov rcx, qword [rbp + 16]
+	call putchar
 	mov rsp, rbp
 	pop rbp
 	ret
@@ -77,14 +76,33 @@ _add:
 main:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 0
+	sub rsp, 16
 	call spookyInitGlobals
+	mov rax, 10
+	mov qword [rbp - 8], rax
+.wls0:
+	mov rax, qword [rbp - 8]
+	cmp rax, 0
+	je .wle0
 	sub rsp, 8
-	mov rax, qword [qword g_i]
+	mov rax, qword [rbp - 8]
 	mov qword [rsp + 0], rax
 	call _printInt
 	add rsp, 8
-	mov rax, qword [qword g_i]
+	sub rsp, 8
+	mov rax, 10
+	mov qword [rsp + 0], rax
+	call _print
+	add rsp, 8
+	mov rax, qword [rbp - 8]
+	mov qword [rbp - 16], rax
+	mov rax, 1
+	mov rcx, rax
+	mov rax, qword [rbp - 16]
+	sub rax, rcx
+	mov qword [rbp - 8], rax
+	jmp .wls0
+.wle0:
 .ret:
 	mov rsp, rbp
 	pop rbp
@@ -94,30 +112,8 @@ main:
 spookyInitGlobals:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 16
-	sub rsp, 8
-	mov rax, 3
-	mov qword [rsp + 0], rax
-	call _add
-	add rsp, 8
-	mov qword [rbp - 8], rax
-	sub rsp, 8
-	mov rax, 8
-	mov qword [rsp + 0], rax
-	call _add
-	add rsp, 8
-	mov qword [rbp - 16], rax
-	mov rax, 2
-	mov rcx, rax
-	mov rax, qword [rbp - 16]
-	xor rdx, rdx
-	idiv rcx
-	mov rcx, rax
-	mov rax, qword [rbp - 8]
-	add rax, rcx
-	mov qword [qword g_i], rax
+	sub rsp, 0
 	mov rsp, rbp
 	pop rbp
 	ret
 section .bss
-	g_i: resq 1

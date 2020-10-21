@@ -17,7 +17,7 @@ public:
 	ParseCursor(const char* str);
 
 	void setEnd(const ParseCursor& end) noexcept { this->end = end.cur; }
-	constexpr bool atEnd() const noexcept { return cur >= end; }
+	bool atEnd();
 
 	void skipParen();
 	void skipNameOrNumber();

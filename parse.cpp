@@ -44,6 +44,7 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 			{
 				pc.skipNameOrNumber();
 				if (pc.tryParse("(")) pc.skipParen();
+				if (pc.tryParse(":")) pc.skipNameOrNumber();
 			}
 			else
 			{
@@ -62,6 +63,7 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 				first.setEnd(opStart);
 				second = pc;
 				op = precRet.op;
+				currPrecedence = precRet.prec;
 			}
 			else if (precRet.prec == 0) return true;
 			return false;
@@ -144,28 +146,22 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 		return "Boolean";
 		case EO_ASSIGN:
 		{
-			std::stringstream nameSS;
-			while (validNameChar(*pc))
-			{
-				nameSS << *pc;
-				pc.move();
-			}
-			const std::string name = nameSS.str();
+			const std::string name = splitter.first.readIdentifier();
 			if (scope.has(name))
 			{
-				if (!pc.tryParse("=")) pc.error("invalid syntax, expected '='");
+				// if (!splitter.first.atEnd()) splitter.first.error("invalid syntax, expected '='");
 			}
 			else
 			{
-				if (functions.count(name)) pc.error("variable name is already a function");
-				if (!pc.tryParse(":")) pc.error("invalid syntax, expected ':'");
-				const std::string typeName = pc.readIdentifier();
+				if (functions.count(name)) splitter.first.error("variable name is already a function");
+				if (!splitter.first.tryParse(":")) splitter.first.error("invalid syntax, expected ':'");
+				const std::string typeName = splitter.first.readIdentifier();
 				scope.add(name, {typeName, fd.localStack.getQword()});
-				if (!pc.tryParse("=")) pc.error("invalid syntax, expected '=' (2)");
+				// if (!splitter.first.atEnd()) splitter.first.error("unexpected character");
 			}
-
-			if (evaluateExpression(pc, op, fd).empty())
-				pc.error("expression does not return value");
+			
+			if (evaluateExpression(splitter.second, op, fd).empty())
+				splitter.second.error("expression does not return value");
 
 			const std::string loc = scope.get(name).location;
 			op << "\tmov " << loc << ", rax\n";
@@ -455,6 +451,34 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 			{
 				op << ".iff" << ifNum << ":\n";
 			}
+		}
+	}
+	else if (pc.tryParseWord("while"))
+	{
+		const auto loopNum = labelManager.getLoopNum();
+
+		{
+			LocalScope localScope(scope);
+
+			op << ".wls" << loopNum << ":\n";
+
+			if (!pc.tryParse("(")) pc.error("expected '('");
+			evaluateExpression(pc, op, fd);
+			if (!pc.tryParse(")")) pc.error("expected ')'");
+			op <<	"\tcmp rax, 0\n"
+					"\tje .wle" << loopNum << "\n";
+
+			if (pc.tryParse("{"))
+			{
+				generateBlock(op, fd);
+			}
+			else
+			{
+				generateStatement(op, fd);
+			}
+
+			op <<	"\tjmp .wls" << loopNum << "\n"
+					".wle" << loopNum << ":\n";
 		}
 	}
 	else
