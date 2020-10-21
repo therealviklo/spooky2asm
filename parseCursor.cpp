@@ -1,5 +1,11 @@
 #include "parseCursor.h"
 
+bool ParseCursor::atEnd()
+{
+	skipWhitespace();
+	return cur >= end;
+}
+
 void ParseCursor::skipWhitespace()
 {
 	auto atComment = [&]() -> bool {

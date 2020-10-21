@@ -1,14 +1,13 @@
 ﻿extern printInt(i: Int)
-
-func add(x: Int) -> Int
-{
-	return x + 1;
-}
-
-i: Int = add(3) + (add(8) / 2)
+extern print(ch: Int)
 
 func main()
 {
-	printInt(i);
-	i;
+	i: Int = 10;
+	while (i)
+	{
+		printInt(i);
+		print(10);
+		i = i - 1;
+	}
 }
