@@ -606,6 +606,7 @@ void Parser::generateFunction(std::stringstream& op)
 	if (pc.tryParse("->"))
 	{
 		fd.retType = pc.readIdentifier();
+		if (fd.retType == "Void") fd.retType = "";
 	}
 
 	functions.insert({funcName, {std::move(argTypes), fd.retType}});
@@ -672,6 +673,7 @@ void Parser::generateExtern(std::stringstream& op)
 	if (pc.tryParse("->"))
 	{
 		retType = pc.readIdentifier();
+		if (retType == "Void") retType = "";
 	}
 
 	auto checkTypes = [&](std::vector<std::string> typeKey) -> bool {
