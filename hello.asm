@@ -76,14 +76,21 @@ _print:
 main:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 16
+	sub rsp, 24
 	call spookyInitGlobals
-	mov rax, 10
+	mov rax, 0
 	mov qword [rbp - 8], rax
-.wls0:
+.fls0:
 	mov rax, qword [rbp - 8]
+	mov qword [rbp - 16], rax
+	mov rax, 10
+	mov rcx, qword [rbp - 16]
+	sub rcx, rax
+	xor rax, rax
+	cmp rcx, 0
+	setl al
 	cmp rax, 0
-	je .wle0
+	je .fle0
 	sub rsp, 8
 	mov rax, qword [rbp - 8]
 	mov qword [rsp + 0], rax
@@ -95,14 +102,14 @@ main:
 	call _print
 	add rsp, 8
 	mov rax, qword [rbp - 8]
-	mov qword [rbp - 16], rax
+	mov qword [rbp - 24], rax
 	mov rax, 1
 	mov rcx, rax
-	mov rax, qword [rbp - 16]
-	sub rax, rcx
+	mov rax, qword [rbp - 24]
+	add rax, rcx
 	mov qword [rbp - 8], rax
-	jmp .wls0
-.wle0:
+	jmp .fls0
+.fle0:
 .ret:
 	mov rsp, rbp
 	pop rbp

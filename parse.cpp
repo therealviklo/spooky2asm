@@ -453,20 +453,66 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 			}
 		}
 	}
-	else if (pc.tryParseWord("while"))
+	// else if (pc.tryParseWord("while"))
+	// {
+	// 	const auto loopNum = labelManager.getLoopNum();
+
+	// 	{
+	// 		LocalScope localScope(scope);
+
+	// 		op << ".wls" << loopNum << ":\n";
+
+	// 		if (!pc.tryParse("(")) pc.error("expected '('");
+	// 		evaluateExpression(pc, op, fd);
+	// 		if (!pc.tryParse(")")) pc.error("expected ')'");
+	// 		op <<	"\tcmp rax, 0\n"
+	// 				"\tje .wle" << loopNum << "\n";
+
+	// 		if (pc.tryParse("{"))
+	// 		{
+	// 			generateBlock(op, fd);
+	// 		}
+	// 		else
+	// 		{
+	// 			generateStatement(op, fd);
+	// 		}
+
+	// 		op <<	"\tjmp .wls" << loopNum << "\n"
+	// 				".wle" << loopNum << ":\n";
+	// 	}
+	// }
+	else if (pc.tryParseWord("for"))
 	{
 		const auto loopNum = labelManager.getLoopNum();
 
 		{
 			LocalScope localScope(scope);
 
-			op << ".wls" << loopNum << ":\n";
-
 			if (!pc.tryParse("(")) pc.error("expected '('");
-			evaluateExpression(pc, op, fd);
-			if (!pc.tryParse(")")) pc.error("expected ')'");
-			op <<	"\tcmp rax, 0\n"
-					"\tje .wle" << loopNum << "\n";
+			
+			if (!pc.tryParse(";"))
+			{
+				evaluateExpression(pc, op, fd);
+				if (!pc.tryParse(";")) pc.error("expected ';'");
+			}
+
+			op << ".fls" << loopNum << ":\n";
+
+			if (!pc.tryParse(";"))
+			{
+				evaluateExpression(pc, op, fd);
+				op <<	"\tcmp rax, 0\n"
+						"\tje .fle" << loopNum << "\n";
+				if (!pc.tryParse(";")) pc.error("expected ';'");
+			}
+
+			std::stringstream endExpr;
+
+			if (!pc.tryParse(")"))
+			{
+				evaluateExpression(pc, endExpr, fd);
+				if (!pc.tryParse(")")) pc.error("expected ')'");
+			}
 
 			if (pc.tryParse("{"))
 			{
@@ -477,8 +523,9 @@ void Parser::generateStatement(std::stringstream& op, FunctionData& fd)
 				generateStatement(op, fd);
 			}
 
-			op <<	"\tjmp .wls" << loopNum << "\n"
-					".wle" << loopNum << ":\n";
+			op << endExpr.str();
+			op <<	"\tjmp .fls" << loopNum << "\n"
+					".fle" << loopNum << ":\n";
 		}
 	}
 	else
