@@ -314,6 +314,16 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 			{
 				return evaluateExpression(splitter.first, op, fd);
 			}
+			else if (splitter.first.tryParse("true"))
+			{
+				op << "\tmov rax, 1\n";
+				return "Int";
+			}
+			else if (splitter.first.tryParse("false"))
+			{
+				op << "\txor rax, rax\n";
+				return "Int";
+			}
 			else
 			{
 				const std::string id = splitter.first.readIdentifier();
