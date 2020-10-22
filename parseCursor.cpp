@@ -31,7 +31,7 @@ void ParseCursor::skipWhitespace()
 
 		if (atComment())
 		{
-			while (*cur != '\n') move();
+			while (*cur != '\n' && *cur != '\0') move();
 			continue;
 		}
 		break;
