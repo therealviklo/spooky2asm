@@ -30,4 +30,4 @@ spooky2asm uses its own calling convention internally, instead of the Microsoft 
 
 Building from source
 --------------------
-Personally, I use [vmake](https://github.com/therealviklo/vmake/) to build spooky2asm from source. (See `build.bat`.) In case you don't want to go through the hassle of figuring out how that works, you can just compile `all.cpp`, which #include's all of the source files.
+To build the program from source, tou can compile `all.cpp`, which #include's all of the source files.
