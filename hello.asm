@@ -1,6 +1,9 @@
 	global main
 	extern ExitProcess
 	extern putchar
+	extern rand
+	extern srand
+	extern time
 
 section .text
 _printInt:
@@ -73,118 +76,56 @@ _print:
 	pop rbp
 	ret
 
-_isPrime:
+_random:
 	push rbp
 	mov rbp, rsp
-	sub rsp, 56
-	mov rax, 1
-	mov qword [rbp - 8], rax
-	mov rax, 2
-	mov qword [rbp - 16], rax
-.fls0:
-	mov rax, qword [rbp - 16]
-	mov qword [rbp - 24], rax
-	mov rax, qword [rbp - 16]
-	mov rcx, rax
-	mov rax, qword [rbp - 24]
-	imul rax, rcx
-	mov qword [rbp - 32], rax
-	mov rax, qword [rbp + 16]
-	mov rcx, qword [rbp - 32]
-	sub rcx, rax
-	xor rax, rax
-	cmp rcx, 0
-	setle al
-	cmp rax, 0
-	je .fle0
-	mov rax, qword [rbp + 16]
-	mov qword [rbp - 48], rax
-	mov rax, qword [rbp - 16]
-	mov rcx, rax
-	mov rax, qword [rbp - 48]
 	xor rdx, rdx
-	idiv rcx
-	mov rax, rdx
-	mov qword [rbp - 56], rax
-	mov rax, 0
-	mov rcx, rax
-	mov rax, qword [rbp - 56]
-	sub rcx, rax
+	mov rax, rsp
+	mov rcx, 16
+	div rcx
+	sub rsp, rdx
 	xor rax, rax
-	cmp rcx, 0
-	sete al
-	cmp rax, 0
-	je .iff0
-	xor rax, rax
-	jmp .ret
-.iff0:
-	mov rax, qword [rbp - 16]
-	mov qword [rbp - 40], rax
-	mov rax, 1
-	mov rcx, rax
-	mov rax, qword [rbp - 40]
+	sub rsp, 40
+	call rand
+	add rsp, 40
+	push rax
+	sub rsp, 32
+	call rand
+	add rsp, 32
+	pop rcx
+	shl rcx, 32
 	add rax, rcx
-	mov qword [rbp - 16], rax
-	jmp .fls0
-.fle0:
-	mov rax, 1
-	jmp .ret
-.ret:
 	mov rsp, rbp
 	pop rbp
 	ret
 
 main:
+	sub rsp, 40
+	xor rcx, rcx
+	call time
+	mov rcx, rax
+	call srand
+	add rsp, 40
 	push rbp
 	mov rbp, rsp
-	sub rsp, 24
+	sub rsp, 16
 	call spookyInitGlobals
-	mov rax, 0
+	sub rsp, 8
+	mov rax, 2
 	mov qword [rbp - 8], rax
-.fls1:
-	mov rax, qword [rbp - 8]
-	mov qword [rbp - 16], rax
-	mov rax, 100
-	mov rcx, qword [rbp - 16]
-	sub rcx, rax
-	xor rax, rax
-	cmp rcx, 0
-	setl al
-	cmp rax, 0
-	je .fle1
-	sub rsp, 8
-	mov rax, qword [rbp - 8]
-	mov qword [rsp + 0], rax
-	call _printInt
-	add rsp, 8
-	sub rsp, 8
-	mov rax, 32
-	mov qword [rsp + 0], rax
-	call _print
-	add rsp, 8
-	sub rsp, 8
-	sub rsp, 8
-	mov rax, qword [rbp - 8]
-	mov qword [rsp + 0], rax
-	call _isPrime
-	add rsp, 8
-	mov qword [rsp + 0], rax
-	call _printInt
-	add rsp, 8
-	sub rsp, 8
-	mov rax, 10
-	mov qword [rsp + 0], rax
-	call _print
-	add rsp, 8
-	mov rax, qword [rbp - 8]
-	mov qword [rbp - 24], rax
-	mov rax, 1
+	mov rax, 2
 	mov rcx, rax
-	mov rax, qword [rbp - 24]
-	add rax, rcx
-	mov qword [rbp - 8], rax
-	jmp .fls1
-.fle1:
+	mov rax, qword [rbp - 8]
+	cqo
+	idiv rcx
+	mov qword [rbp - 16], rax
+	mov rax, 2
+	mov rcx, rax
+	mov rax, qword [rbp - 16]
+	imul rax, rcx
+	mov qword [rsp + 0], rax
+	call _printInt
+	add rsp, 8
 .ret:
 	mov rsp, rbp
 	pop rbp
