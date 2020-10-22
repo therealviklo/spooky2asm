@@ -1,6 +1,6 @@
 spooky2asm
 ==========
-spooky2asm is a command-line program that compiles [Spooky](https://github.com/jsannemo/spooky-vm/) to x86-64 NASM assembly. Currently, it only supports Windows. (The compiler can run on other operating systems but the assembly that it generates is made for Windows.)
+spooky2asm is a command-line program that compiles [Spooky](https://github.com/jsannemo/spooky-vm/) to x86-64 NASM assembly. I don't think that the assembly that the compiler generates is very efficient, but it works (hopefully). Currently, it only supports Windows. (The compiler can run on other operating systems but the assembly that it generates is made for Windows.)
 
 Usage
 -----
@@ -27,3 +27,7 @@ spooky2asm uses its own calling convention internally, instead of the Microsoft 
 * The caller cleans up the parameter stack space.
 * Values are returned in rax.
 * No stack aligning is necessary.
+
+Building from source
+--------------------
+Personally, I use [vmake](https://github.com/therealviklo/vmake/) to build spooky2asm from source. (See `build.bat`.) In case you don't want to go through the hassle of figuring out how that works, you can just compile `all.cpp`, which #include's all of the source files.
