@@ -30,4 +30,4 @@ spooky2asm uses its own calling convention internally, instead of the Microsoft 
 
 Building from source
 --------------------
-To build the program from source, tou can compile `all.cpp`, which #include's all of the source files.
+To build the program from source, you can compile `all.cpp`, which #include's all of the source files.
