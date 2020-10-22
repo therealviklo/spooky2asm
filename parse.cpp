@@ -609,6 +609,12 @@ void Parser::generateFunction(std::stringstream& op)
 		if (fd.retType == "Void") fd.retType = "";
 	}
 
+	if (funcName == "main")
+	{
+		if (argTypes.size()) pc.error("invalid argument list for main");
+		if (!fd.retType.empty()) pc.error("invalid return type for main");
+	}
+
 	functions.insert({funcName, {std::move(argTypes), fd.retType}});
 
 	if (!pc.tryParse("{")) pc.error("expected '{'");
@@ -892,4 +898,6 @@ Parser::Parser(const std::string& prog, std::stringstream& op)
 			"\tpop rbp\n"
 			"\tret\n";
 	op << bssSection.str();
+
+	if (!functions.count("main")) pc.error("no main function");
 }
