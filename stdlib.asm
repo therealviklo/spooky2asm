@@ -115,6 +115,49 @@ _printInt:
 	mov rsp, rbp
 	pop rbp
 	ret
+	
+_random:
+	push rbp
+	mov rbp, rsp
+
+	xor rdx, rdx
+	mov rax, rsp
+	mov rcx, 16
+	div rcx
+	sub rsp, rdx
+	
+	xor rax, rax
+	sub rsp, 40
+	call rand
+	add rsp, 40
+	
+	push rax
+	sub rsp, 32
+	call rand
+	add rsp, 32
+	pop rcx
+	shl rcx, 16
+	add rax, rcx
+	
+	push rax
+	sub rsp, 32
+	call rand
+	add rsp, 32
+	pop rcx
+	shl rcx, 16
+	add rax, rcx
+	
+	push rax
+	sub rsp, 32
+	call rand
+	add rsp, 32
+	pop rcx
+	shl rcx, 16
+	add rax, rcx
+	
+	mov rsp, rbp
+	pop rbp
+	ret
 
 main:
 	sub rsp, 8
