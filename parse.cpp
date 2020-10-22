@@ -58,14 +58,14 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 			if (pc.atEnd()) return true;
 			ParseCursor opStart = pc;
 			auto precRet = precedence(pc);
-			if (precRet.prec > currPrecedence)
+			if (precRet.prec == 0) return true;
+			if (precRet.prec >= currPrecedence)
 			{
 				first.setEnd(opStart);
 				second = pc;
 				op = precRet.op;
 				currPrecedence = precRet.prec;
 			}
-			else if (precRet.prec == 0) return true;
 			return false;
 		}
 
@@ -264,7 +264,7 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 
 			op <<	"\tmov rcx, rax\n"
 					"\tmov rax, " << tmp << "\n"
-					"\txor rdx, rdx\n"
+					"\tcqo\n"
 					"\tidiv rcx\n"
 					"\tmov rax, rdx\n";
 		}
@@ -298,7 +298,7 @@ std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, F
 
 			op <<	"\tmov rcx, rax\n"
 					"\tmov rax, " << tmp << "\n"
-					"\txor rdx, rdx\n"
+					"\tcqo\n"
 					"\tidiv rcx\n";
 		}
 		return "Int";
@@ -617,9 +617,23 @@ void Parser::generateFunction(std::stringstream& op)
 	generateBlock(body, fd);
 
 	op << getFuncLabel(funcName) << ":\n";
+	
+	if (funcName == "main")
+	{
+		op <<	"\tsub rsp, 40\n"
+				"\txor rcx, rcx\n"
+				"\tcall time\n"
+				"\tmov rcx, rax\n"
+				"\tcall srand\n"
+				"\tadd rsp, 40\n";
+	}
+
 	op << fd.localStack.getStackInit().str();
 
-	if (funcName == "main") op << "\tcall spookyInitGlobals\n";
+	if (funcName == "main")
+	{
+		op << "\tcall spookyInitGlobals\n";
+	}
 
 	op << body.str();
 	op <<	".ret:\n"
@@ -765,12 +779,40 @@ void Parser::generateExtern(std::stringstream& op)
 				"\tret\n"
 				"\n";
 	}
+	else if (funcName == "random")
+	{
+		if (!checkTypes({})) pc.error("invalid extern arguments");
+		if (retType != "Int") pc.error("invalid extern return type");
+		op <<	"_random:\n"
+				"\tpush rbp\n"
+				"\tmov rbp, rsp\n"
+				"\txor rdx, rdx\n"
+				"\tmov rax, rsp\n"
+				"\tmov rcx, 16\n"
+				"\tdiv rcx\n"
+				"\tsub rsp, rdx\n"
+				"\txor rax, rax\n"
+				"\tsub rsp, 40\n"
+				"\tcall rand\n"
+				"\tadd rsp, 40\n"
+				"\tpush rax\n"
+				"\tsub rsp, 32\n"
+				"\tcall rand\n"
+				"\tadd rsp, 32\n"
+				"\tpop rcx\n"
+				"\tshl rcx, 32\n"
+				"\tadd rax, rcx\n"
+				"\tmov rsp, rbp\n"
+				"\tpop rbp\n"
+				"\tret\n"
+				"\n";
+	}
 	else
 	{
 		pc.error("unknown extern");
 	}
 
-	functions.insert({std::move(funcName), {std::move(argTypes), ""}});
+	functions.insert({std::move(funcName), {std::move(argTypes), retType}});
 }
 
 void Parser::addGlobal()
@@ -798,6 +840,9 @@ Parser::Parser(const std::string& prog, std::stringstream& op)
 	op <<	"\tglobal main\n"
 			"\textern ExitProcess\n"
 			"\textern putchar\n"
+			"\textern rand\n"
+			"\textern srand\n"
+			"\textern time\n"
 			"\n"
 			"section .text\n";
 
