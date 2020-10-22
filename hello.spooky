@@ -2,7 +2,36 @@
 extern print(ch: Int)
 extern random() -> Int
 
+func pow2(i: Int) -> Int
+{
+	p: Int = 1;
+	for (; i > 0; i = i - 1)
+	{
+		p = p * 2;
+	}
+	return p;
+}
+
+func bitAt(i: Int, bit: Int) -> Int
+{
+	return i / pow2(bit) % 2;
+}
+
+func printBits(i: Int)
+{
+	for (bit: Int = 63; bit >= 0; bit = bit - 1)
+	{
+		if (bitAt(i, bit)) print(49);
+		else print(48);
+		if (bit % 8 == 0) print(32);
+	}
+}
+
 func main()
 {
-	printInt(2 / 2 * 2);
+	for (i: Int = 0; ; i = i + 1)
+	{
+		printBits(random());
+		print(10);
+	}
 }
