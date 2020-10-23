@@ -20,6 +20,7 @@ public:
 	bool atEnd();
 
 	void skipParen();
+	void skipBlock();
 	void skipNameOrNumber();
 
 	void move();

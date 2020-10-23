@@ -62,6 +62,17 @@ void ParseCursor::skipParen()
 	}
 }
 
+void ParseCursor::skipBlock()
+{
+	size_t paramLevel = 0;
+	while (paramLevel || !tryParse("}"))
+	{
+		if (*cur == '{') paramLevel++;
+		else if (*cur == '}') paramLevel--;
+		move();
+	}
+}
+
 void ParseCursor::skipNameOrNumber()
 {
 	skipWhitespace();
