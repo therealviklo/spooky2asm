@@ -793,47 +793,67 @@ void Parser::generateExtern(std::stringstream& op)
 	{
 		if (!checkTypes({})) pc.error("invalid extern arguments");
 		if (retType != "Int") pc.error("invalid extern return type");
-		op <<	"_random:\n"
-				"\tpush rbp\n"
-				"\tmov rbp, rsp\n"
-				"\txor rdx, rdx\n"
-				"\tmov rax, rsp\n"
-				"\tmov rcx, 16\n"
-				"\tdiv rcx\n"
-				"\tsub rsp, rdx\n"
-				"\txor rax, rax\n"
-				"\tsub rsp, 40\n"
-				"\tcall rand\n"
-				"\tadd rsp, 40\n"
-
-				"\tpush rax\n"
-				"\tsub rsp, 32\n"
-				"\tcall rand\n"
-				"\tadd rsp, 32\n"
-				"\tpop rcx\n"
-				"\tshl rcx, 16\n"
-				"\tadd rax, rcx\n"
-				
-				"\tpush rax\n"
-				"\tsub rsp, 32\n"
-				"\tcall rand\n"
-				"\tadd rsp, 32\n"
-				"\tpop rcx\n"
-				"\tshl rcx, 16\n"
-				"\tadd rax, rcx\n"
-				
-				"\tpush rax\n"
-				"\tsub rsp, 32\n"
-				"\tcall rand\n"
-				"\tadd rsp, 32\n"
-				"\tpop rcx\n"
-				"\tshl rcx, 16\n"
-				"\tadd rax, rcx\n"
-				
-				"\tmov rsp, rbp\n"
-				"\tpop rbp\n"
-				"\tret\n"
-				"\n";
+		op <<	"_random:\n" <<
+				R"(	push rbp
+	mov rbp, rsp
+	xor rdx, rdx
+	mov rax, rsp
+	mov rcx, 16
+	div rcx
+	sub rsp, rdx
+	xor rax, rax
+	sub rsp, 40
+	call rand
+	add rsp, 40
+	and rax, 0xFF
+	sub rsp, 32
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	add rsp, 32
+	mov rsp, rbp
+	pop rbp
+	ret
+)";
 	}
 	else
 	{

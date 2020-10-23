@@ -119,42 +119,60 @@ _printInt:
 _random:
 	push rbp
 	mov rbp, rsp
-
 	xor rdx, rdx
 	mov rax, rsp
 	mov rcx, 16
 	div rcx
 	sub rsp, rdx
-	
 	xor rax, rax
 	sub rsp, 40
 	call rand
 	add rsp, 40
-	
-	push rax
+	and rax, 0xFF
 	sub rsp, 32
-	call rand
-	add rsp, 32
-	pop rcx
-	shl rcx, 16
-	add rax, rcx
-	
 	push rax
-	sub rsp, 32
 	call rand
-	add rsp, 32
+	and rax, 0xFF
 	pop rcx
-	shl rcx, 16
+	shl rcx, 8
 	add rax, rcx
-	
 	push rax
-	sub rsp, 32
 	call rand
-	add rsp, 32
+	and rax, 0xFF
 	pop rcx
-	shl rcx, 16
+	shl rcx, 8
 	add rax, rcx
-	
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	push rax
+	call rand
+	and rax, 0xFF
+	pop rcx
+	shl rcx, 8
+	add rax, rcx
+	add rsp, 32
 	mov rsp, rbp
 	pop rbp
 	ret

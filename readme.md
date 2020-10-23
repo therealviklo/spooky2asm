@@ -18,7 +18,7 @@ Implementation details
 ----------------------
 I have tried to make this compiler as similar to [spooky-vm](https://github.com/jsannemo/spooky-vm/) as possible. However, there are some small differences that I have noticed:
 * spooky2asm uses 64 bit signed integers instead of the 32 bit signed integers that spooky-vm uses.
-* spooky-vm doesn't seem to support empty statements (e.g. `for (;;);`), which spooky2asm does (although `for (;;) 1;` is valid in spooky-vm).
+* spooky-vm doesn't seem to support empty statements (e.g. `if (true);`), which spooky2asm does.
 * spooky2asm lets you indent using tabs.
 * spooky2asm lets you have 0 as an implicit operand for addition and subtraction (which means that `i: Int = -1;` is valid).
 
