@@ -25,67 +25,70 @@ PrecedenceReturn precedence(ParseCursor& c)
 	return {EO_NOOP, 0};
 }
 
+struct Splitter
+{
+	ExprOp op;
+	int currPrecedence;
+	ParseCursor& pc;
+	ParseCursor first;
+	ParseCursor second;
+
+	void skipOperand()
+	{
+		if (pc.tryParse("("))
+		{
+			pc.skipParen();
+		}
+		else if (validNameChar(*pc))
+		{
+			pc.skipNameOrNumber();
+			if (pc.tryParse("(")) pc.skipParen();
+			if (pc.tryParse(":")) pc.skipNameOrNumber();
+		}
+		else
+		{
+			pc.error("unexpected character");
+		}
+	}
+
+	// Return: vid slutet eller ej
+	bool parseOp()
+	{
+		if (pc.atEnd()) return true;
+		ParseCursor opStart = pc;
+		auto precRet = precedence(pc);
+		if (precRet.prec == 0) return true;
+		if (precRet.prec >= currPrecedence)
+		{
+			first.setEnd(opStart);
+			second = pc;
+			op = precRet.op;
+			currPrecedence = precRet.prec;
+		}
+		return false;
+	}
+
+	Splitter(ParseCursor& pc)
+		: op(EO_NOOP),
+			currPrecedence(0),
+			pc(pc),
+			first(pc),
+			second(pc)
+	{
+		if (*pc == '+' || *pc == '-')
+		{
+			parseOp();
+		}
+		do
+		{
+			skipOperand();
+		} while (!parseOp());
+	}
+};
+
 std::string Parser::evaluateExpression(ParseCursor& pc, std::stringstream& op, FunctionData& fd)
 {
-	struct Splitter {
-		ExprOp op;
-		int currPrecedence;
-		ParseCursor& pc;
-		ParseCursor first;
-		ParseCursor second;
-
-		void skipOperand()
-		{
-			if (pc.tryParse("("))
-			{
-				pc.skipParen();
-			}
-			else if (validNameChar(*pc))
-			{
-				pc.skipNameOrNumber();
-				if (pc.tryParse("(")) pc.skipParen();
-				if (pc.tryParse(":")) pc.skipNameOrNumber();
-			}
-			else
-			{
-				pc.error("unexpected character");
-			}
-		}
-
-		// Return: vid slutet eller ej
-		bool parseOp()
-		{
-			if (pc.atEnd()) return true;
-			ParseCursor opStart = pc;
-			auto precRet = precedence(pc);
-			if (precRet.prec == 0) return true;
-			if (precRet.prec >= currPrecedence)
-			{
-				first.setEnd(opStart);
-				second = pc;
-				op = precRet.op;
-				currPrecedence = precRet.prec;
-			}
-			return false;
-		}
-
-		Splitter(ParseCursor& pc)
-			: op(EO_NOOP),
-			  currPrecedence(0),
-			  pc(pc),
-			  first(pc),
-			  second(pc)
-		{
-			if (*pc == '+' || *pc == '-')
-			{
-				parseOp();
-			}
-			do
-			{
-				skipOperand();
-			} while (!parseOp());
-		}
-	} splitter(pc);
+	Splitter splitter(pc);
 
 	switch (splitter.op)
 	{
@@ -560,7 +563,7 @@ void Parser::generateBlock(std::stringstream& op, FunctionData& fd)
 void Parser::generateFunction(std::stringstream& op)
 {
 	std::string funcName = pc.readIdentifier();
-	if (functions.count(funcName)) pc.error("function redefinition");
+	if (functions.count(funcName) > 1) pc.error("function redefinition");
 	std::vector<std::string> argTypes;
 
 	FunctionData fd;
@@ -615,7 +618,7 @@ void Parser::generateFunction(std::stringstream& op)
 		if (!fd.retType.empty()) pc.error("invalid return type for main");
 	}
 
-	functions.insert({funcName, {std::move(argTypes), fd.retType}});
+	// functions.insert({funcName, {std::move(argTypes), fd.retType}});
 
 	if (!pc.tryParse("{")) pc.error("expected '{'");
 
@@ -659,6 +662,7 @@ void Parser::generateFunction(std::stringstream& op)
 void Parser::generateExtern(std::stringstream& op)
 {
 	std::string funcName = pc.readIdentifier();
+	if (functions.count(funcName) > 1) pc.error("function redefinition");
 	std::vector<std::string> argTypes;
 	std::string retType;
 
@@ -836,7 +840,7 @@ void Parser::generateExtern(std::stringstream& op)
 		pc.error("unknown extern");
 	}
 
-	functions.insert({std::move(funcName), {std::move(argTypes), retType}});
+	// functions.insert({std::move(funcName), {std::move(argTypes), retType}});
 }
 
 void Parser::addGlobal()
@@ -861,6 +865,56 @@ void Parser::addGlobal()
 Parser::Parser(const std::string& prog, std::stringstream& op)
 	: pc(prog.c_str())
 {
+	// ppc läser in funktionerna i förväg
+	ParseCursor ppc = pc;
+	while (*ppc != '\0')
+	{
+		auto readFunctionInfo = [&]() {
+			std::string funcName = ppc.readIdentifier();
+
+			if (!ppc.tryParse("(")) ppc.error("expected '('");
+			std::vector<std::string> argTypes;
+			if (!ppc.tryParse(")"))
+			{
+				do
+				{
+					ppc.readIdentifier();
+					if (!ppc.tryParse(":")) ppc.error("expected ':'");
+					argTypes.push_back(ppc.readIdentifier());
+				} while (ppc.tryParse(","));
+				if (!ppc.tryParse(")")) ppc.error("expected ')'");
+			}
+
+			std::string retType;
+			if (ppc.tryParse("->"))
+			{
+				retType = ppc.readIdentifier();
+				if (retType == "Void") retType = "";
+			}
+
+			functions.insert({std::move(funcName), {std::move(argTypes), std::move(retType)}});
+		};
+
+		if (ppc.tryParseWord("func"))
+		{
+			readFunctionInfo();
+			if (!ppc.tryParse("{")) ppc.error("expected '{");
+			ppc.skipBlock();
+		}
+		else if (ppc.tryParseWord("extern"))
+		{
+			readFunctionInfo();
+		}
+		else
+		{
+			ppc.readIdentifier();
+			if (!ppc.tryParse(":")) ppc.error("expected ':'");
+			ppc.readIdentifier();
+			if (!ppc.tryParse("=")) ppc.error("expected '='");
+			Splitter splitter(ppc);
+		}
+	}
+
 	op <<	"\tglobal main\n"
 			"\textern ExitProcess\n"
 			"\textern putchar\n"
@@ -874,9 +928,8 @@ Parser::Parser(const std::string& prog, std::stringstream& op)
 
 	LocalScope globalVarScope(scope);
 
-	while (true)
+	while (*pc != '\0')
 	{
-		if (*pc == '\0') break;
 		if (pc.tryParseWord("func"))
 		{
 			generateFunction(op);
